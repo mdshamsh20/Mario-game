@@ -18,7 +18,7 @@
         body {
             background: #5C94FC;
             font-family: 'Press Start 2P', monospace;
-            over flow: hidden;
+            overflow: hidden;
             touch-action: none;
             image-rendering: pixelated
         }
@@ -346,6 +346,21 @@
                 opacity: 0.5
             }
         }
+
+        #notification {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #FF4444;
+            font-size: 24px;
+            z-index: 150;
+            pointer-events: none;
+            text-shadow: 2px 2px 0 #000;
+            display: none;
+            text-align: center;
+            width: 100%;
+        }
     </style>
 </head>
 
@@ -369,7 +384,8 @@
     </div>
 
     <div id="score">
-        COINS: <span id="coinDisplay">0</span><br>
+        🪙 <span id="coinDisplay">0</span><br>
+        LEFT: <span id="coinsLeft">0</span><br>
         SCORE: <span id="scoreDisplay">0</span><br>
         ENEMIES: <span id="enemyCount">0</span>
     </div>
@@ -379,10 +395,10 @@
         <ul>
             <li>← → RUN</li>
             <li>↑ SPACE JUMP</li>
-            <li>B/X STOMP</li>
+            <li>B/X SWORD⚔</li>
             <li>C/SHIFT DASH</li>
         </ul>
-        <div class="objective">► REACH THE FLAG!</div>
+        <div class="objective">► COLLECT COINS!<br>► REACH THE FLAG!</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -391,10 +407,12 @@
         <div id="overlayTitle">WORLD CLEAR!</div>
         <div id="overlaySubtitle">Great job!</div>
         <div class="overlay-buttons">
-            <button class="overlay-btn" onclick="nextLevel()">NEXT WORLD</button>
+            <button class="overlay-btn" id="overlayActionBtn" onclick="nextLevel()">NEXT WORLD</button>
             <button class="overlay-btn" onclick="backToMenu()">MENU</button>
         </div>
     </div>
+
+    <div id="notification"></div>
 
     <div id="controls">
         <div class="leftControls">
@@ -405,8 +423,8 @@
         <div class="rightControls">
             <div class="actionRow">
                 <div class="controlBtn attackBtn" id="attackBtn">
-                    <span class="buttonLabel">STOMP</span>
-                    <span class="buttonKey">B</span>
+                    <span class="buttonLabel">SWORD</span>
+                    <span class="buttonKey">⚔</span>
                 </div>
                 <div class="controlBtn rollBtn" id="rollBtn">
                     <span class="buttonLabel">DASH</span>
@@ -419,11 +437,79 @@
     <script>
         let currentLevel = 1, maxUnlockedLevel = 1, difficulty = 'easy', totalScore = 0;
         const DIFFICULTY_SETTINGS = { easy: { enemySpeedMultiplier: 1, enemyDamageMultiplier: 1, enemyCountMultiplier: 1, playerDamageMultiplier: 1.5, name: 'EASY' }, moderate: { enemySpeedMultiplier: 1.3, enemyDamageMultiplier: 1.5, enemyCountMultiplier: 1.5, playerDamageMultiplier: 1, name: 'MODERATE' }, hard: { enemySpeedMultiplier: 1.8, enemyDamageMultiplier: 2, enemyCountMultiplier: 2, playerDamageMultiplier: 0.8, name: 'HARD' } };
-        function generateLevel(levelNum, diff) { const settings = DIFFICULTY_SETTINGS[diff]; const baseEnemyCount = Math.min(3 + Math.floor(levelNum / 5), 15); const enemyCount = Math.floor(baseEnemyCount * settings.enemyCountMultiplier); const isBossLevel = levelNum % 10 === 0; return { levelNum, enemyCount: isBossLevel ? enemyCount + 5 : enemyCount, isBossLevel, enemySpeed: (2 + levelNum * 0.1) * settings.enemySpeedMultiplier, enemyDamage: (10 + levelNum) * settings.enemyDamageMultiplier, enemyHP: (30 + levelNum * 2) * (isBossLevel ? 2 : 1), levelWidth: 3000 + (levelNum * 100), playerDamage: 25 * settings.playerDamageMultiplier } }
+        let audioCtx = null;
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            if (type === 'jump') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(); osc.stop(now + 0.1);
+            } else if (type === 'coin') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(987.77, now);
+                osc.frequency.exponentialRampToValueAtTime(1318.51, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(); osc.stop(now + 0.2);
+            } else if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.linearRampToValueAtTime(10, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(); osc.stop(now + 0.2);
+            } else if (type === 'victory') {
+                [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.connect(g); g.connect(audioCtx.destination);
+                    o.frequency.setValueAtTime(f, now + i * 0.1);
+                    o.type = 'square';
+                    g.gain.setValueAtTime(0.1, now + i * 0.1);
+                    g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.1 + 0.3);
+                    o.start(now + i * 0.1); o.stop(now + i * 0.1 + 0.3);
+                });
+            } else if (type === 'defeat') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.15);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(); osc.stop(now + 0.15);
+            }
+        }
+        function generateLevel(levelNum, diff) {
+            const settings = DIFFICULTY_SETTINGS[diff];
+            const baseEnemyCount = Math.min(3 + Math.floor(levelNum / 5), 15);
+            const enemyCount = Math.floor(baseEnemyCount * settings.enemyCountMultiplier);
+            const isBossLevel = levelNum % 10 === 0;
+            const themes = ['NORMAL', 'UNDERGROUND', 'SKY', 'CASTLE'];
+            const themeIndex = Math.floor((levelNum - 1) / 10) % 4;
+            const theme = themes[themeIndex];
+            return {
+                levelNum,
+                enemyCount: isBossLevel ? enemyCount + 5 : enemyCount,
+                isBossLevel,
+                theme,
+                enemySpeed: (2 + levelNum * 0.1) * settings.enemySpeedMultiplier,
+                enemyDamage: (10 + levelNum) * settings.enemyDamageMultiplier,
+                enemyHP: (30 + levelNum * 2) * (isBossLevel ? 2 : 1),
+                levelWidth: 3000 + (levelNum * 100),
+                playerDamage: 25 * settings.playerDamageMultiplier
+            }
+        }
         const canvas = document.getElementById('gameCanvas'), ctx = canvas.getContext('2d'); canvas.width = window.innerWidth; canvas.height = window.innerHeight;
         const Engine = Matter.Engine, World = Matter.World, Bodies = Matter.Bodies, Body = Matter.Body;
         let engine, world, player, enemies, flag, floor, platformBodies = [];
-        let attackHitbox = null, particles = [], cameraX = 0, levelConfig = null, gameRunning = false, clouds = [], mountains = [], pipes = [], brickStairs = [], bushes = [], floatingPlatforms = [], coins = [], questionBlocks = [];
+        let attackHitbox = null, particles = [], cameraX = 0, levelConfig = null, gameRunning = false, clouds = [], mountains = [], pipes = [], brickStairs = [], bushes = [], floatingPlatforms = [], coins = [], questionBlocks = [], movingPlatforms = [], mushrooms = [];
         const PLAYER_SPEED = 8, JUMP_FORCE = 15, DODGE_IMPULSE = 18, DODGE_DURATION = 300, ATTACK_DURATION = 150, AGGRO_DISTANCE = 300, ATTACK_DISTANCE = 50, HIT_STOP_DURATION = 50, GROUND_Y = canvas.height - 250;
         const CATEGORY = { PLAYER: 0x0001, PLAYER_ATTACK: 0x0002, ENEMY: 0x0004, ENVIRONMENT: 0x0008 };
         let gameState = { isGameOver: false, isVictory: false, hitStopEndTime: 0, inputState: { left: false, right: false, up: false, attack: false, roll: false, attackHandled: false, rollHandled: false, jumpHandled: false } };
@@ -434,27 +520,519 @@
         function generateBrickStairs() { brickStairs = []; const stairCount = 2 + Math.floor(levelConfig.levelNum / 10); for (let i = 0; i < Math.min(stairCount, 4); i++) { const steps = 3 + Math.floor(Math.random() * 3); brickStairs.push({ x: 800 + (i * 700), y: GROUND_Y - 50, steps: steps }) } }
         function generateBushes() { bushes = []; for (let i = 0; i < 10; i++)bushes.push({ x: Math.random() * levelConfig.levelWidth, y: GROUND_Y - 50, width: 40 + Math.random() * 20 }) }
         function generateCoins() { coins = []; const coinCount = 10 + Math.floor(levelConfig.levelNum / 2); for (let i = 0; i < Math.min(coinCount, 25); i++) { const onPlatform = Math.random() > 0.3; if (onPlatform && floatingPlatforms.length > 0) { const plat = floatingPlatforms[Math.floor(Math.random() * floatingPlatforms.length)]; coins.push({ x: plat.x + Math.random() * (plat.width * 30), y: plat.y - 40, collected: false, animFrame: 0 }) } else { coins.push({ x: 200 + Math.random() * (levelConfig.levelWidth - 400), y: GROUND_Y - 100 - Math.random() * 200, collected: false, animFrame: 0 }) } } }
-        function generateQuestionBlocks() { questionBlocks = []; const blockCount = 3 + Math.floor(levelConfig.levelNum / 5); for (let i = 0; i < Math.min(blockCount, 8); i++) { if (floatingPlatforms.length > 0) { const plat = floatingPlatforms[Math.floor(Math.random() * floatingPlatforms.length)]; questionBlocks.push({ x: plat.x + 15, y: plat.y - 60, hit: false, coins: 3, bumping: false, bumpTime: 0 }) } } }
-        function generateFloatingPlatforms() { floatingPlatforms = []; const platformCount = 5 + Math.floor(levelConfig.levelNum / 3); for (let i = 0; i < Math.min(platformCount, 15); i++) { const x = 300 + (i * 350) + (Math.random() * 100); const heightLevel = Math.floor(Math.random() * 3); const y = GROUND_Y - 150 - (heightLevel * 80); const width = 3 + Math.floor(Math.random() * 3); floatingPlatforms.push({ x: x, y: y, width: width }) } }
+        function generateQuestionBlocks() { questionBlocks = []; const blockCount = 3 + Math.floor(levelConfig.levelNum / 5); for (let i = 0; i < Math.min(blockCount, 8); i++) { if (floatingPlatforms.length > 0) { const plat = floatingPlatforms[Math.floor(Math.random() * floatingPlatforms.length)]; questionBlocks.push({ x: plat.x + 15, y: plat.y - 60, hit: false, coins: 3, bumping: false, bumpTime: 0, isMushroom: i === 0 }) } } }
+        function generateMovingPlatforms() { movingPlatforms = []; const count = 2 + Math.floor(levelConfig.levelNum / 8); for (let i = 0; i < Math.min(count, 5); i++) { const startX = 600 + (i * 800); const y = GROUND_Y - 180 - (Math.floor(Math.random() * 2) * 60); movingPlatforms.push({ x: startX, y: y, width: 3, startX: startX, endX: startX + 150, direction: 1, speed: 1.5, bodies: [] }) } }
+        function generateFloatingPlatforms() { floatingPlatforms = []; const platformCount = 5 + Math.floor(levelConfig.levelNum / 3); for (let i = 0; i < Math.min(platformCount, 15); i++) { const x = 300 + (i * 350) + (Math.random() * 100); const heightLevel = Math.floor(Math.random() * 3); const y = GROUND_Y - 150 - (heightLevel * 80); const width = 3 + Math.floor(Math.random() * 3); const isCloud = Math.random() > 0.7; floatingPlatforms.push({ x: x, y: y, width: width, isCloud: isCloud }) } }
         function createParticles(x, y, type, count = 5) { for (let i = 0; i < count; i++)particles.push({ x, y, vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4 - 2, life: 30 + Math.random() * 20, maxLife: 50, type, size: 4 + Math.random() * 4 }) }
         function updateParticles() { particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life--; return p.life > 0 }) }
-        function drawParticles() { particles.forEach(p => { const alpha = p.life / p.maxLife; ctx.save(); ctx.globalAlpha = alpha; if (p.type === 'dust') ctx.fillStyle = '#8B7355'; else if (p.type === 'hit') ctx.fillStyle = '#FFD700'; else if (p.type === 'defeat') ctx.fillStyle = '#FF4444'; ctx.fillRect(p.x - cameraX - p.size / 2, p.y - p.size / 2, p.size, p.size); ctx.restore() }) }
-        function createGoomba(x, config) { const goomba = Bodies.rectangle(x, GROUND_Y - 35 / 2, 35, 35, { label: 'goomba', friction: 0.3, frictionAir: 0.02, collisionFilter: { category: CATEGORY.ENEMY, mask: CATEGORY.ENVIRONMENT | CATEGORY.PLAYER_ATTACK } }); goomba.gameData = { hp: config.enemyHP, maxHp: config.enemyHP, state: 'PATROL', patrolLeft: x - 150, patrolRight: x + 150, patrolDirection: 1, lastAttackTime: 0, attackCooldown: 800 - (config.levelNum * 10), animFrame: 0, animTimer: 0, speed: config.enemySpeed, damage: config.enemyDamage, isGrounded: false }; return goomba }
-        function initLevel(levelNum, diff) { if (engine) { World.clear(engine.world); Engine.clear(engine) } engine = Engine.create(); engine.gravity.y = 1; world = engine.world; levelConfig = generateLevel(levelNum, diff); generateClouds(); generateMountains(); generatePipes(); generateBrickStairs(); generateBushes(); generateFloatingPlatforms(); generateCoins(); generateQuestionBlocks(); platformBodies = []; floor = Bodies.rectangle(levelConfig.levelWidth / 2, GROUND_Y + 25, levelConfig.levelWidth, 50, { isStatic: true, label: 'floor', friction: 0.8 }); platformBodies.push(floor); pipes.forEach(pipe => { const pipeTop = Bodies.rectangle(pipe.x, pipe.y - pipe.height - 5, 50, 10, { isStatic: true, label: 'platform', friction: 0.8 }); const pipeBody = Bodies.rectangle(pipe.x, pipe.y - pipe.height / 2, 40, pipe.height, { isStatic: true, label: 'pipeBody' }); platformBodies.push(pipeTop); World.add(world, pipeBody) }); brickStairs.forEach(stairs => { const brickSize = 30; for (let step = 0; step < stairs.steps; step++) { for (let brick = 0; brick <= step; brick++) { const brickX = stairs.x + (brick * brickSize) + brickSize / 2; const brickY = stairs.y - (step * brickSize) - brickSize / 2; const brickBody = Bodies.rectangle(brickX, brickY, brickSize, brickSize, { isStatic: true, label: 'platform', friction: 0.8 }); platformBodies.push(brickBody) } } }); floatingPlatforms.forEach(plat => { const brickSize = 30; for (let i = 0; i < plat.width; i++) { const brickX = plat.x + (i * brickSize); const platformBlock = Bodies.rectangle(brickX, plat.y, brickSize, brickSize, { isStatic: true, label: 'platform', friction: 0.8 }); platformBodies.push(platformBlock) } }); player = Bodies.rectangle(100, GROUND_Y - playerSize / 2 - 100, playerSize, playerSize, { label: 'player', friction: 0.3, frictionAir: 0.02, inertia: Infinity, collisionFilter: { category: CATEGORY.PLAYER, mask: CATEGORY.ENVIRONMENT | CATEGORY.ENEMY } }); player.gameData = { hp: 100, maxHp: 100, isInvulnerable: false, facingRight: true, dodgeEndTime: 0, lastHitTime: null, animFrame: 0, animTimer: 0, state: 'idle', damage: levelConfig.playerDamage, isGrounded: false, canJump: false, coins: 0, hasSword: true }; enemies = []; const spacing = levelConfig.levelWidth / (levelConfig.enemyCount + 1); for (let i = 0; i < levelConfig.enemyCount; i++) { const x = spacing * (i + 1); enemies.push(createGoomba(x, levelConfig)) } flag = Bodies.rectangle(levelConfig.levelWidth - 200, GROUND_Y - 60, 20, 120, { isStatic: true, isSensor: true, label: 'flag' }); flag.gameData = { isReached: false }; World.add(world, [...platformBodies, player, ...enemies, flag]); gameState.isGameOver = false; gameState.isVictory = false; gameState.hitStopEndTime = 0; cameraX = 0; particles = []; attackHitbox = null; updateHearts(); updateEnemyCount(); updateUI() }
+        function drawParticles() { particles.forEach(p => { const alpha = p.life / p.maxLife; ctx.save(); ctx.globalAlpha = alpha; if (p.type === 'dust') ctx.fillStyle = '#8B7355'; else if (p.type === 'hit') ctx.fillStyle = '#FFD700'; else if (p.type === 'defeat') ctx.fillStyle = '#FF4444'; else if (p.type === 'coin') { ctx.fillStyle = '#FFD700'; ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 10 } else if (p.type === 'slash') { ctx.fillStyle = '#CCCCCC'; ctx.shadowColor = '#FFFFFF'; ctx.shadowBlur = 5 } ctx.fillRect(p.x - cameraX - p.size / 2, p.y - p.size / 2, p.size, p.size); ctx.restore() }) }
+        function createGoomba(x, y, config, canRespawn = true) { const goomba = Bodies.rectangle(x, y, 35, 35, { label: 'goomba', friction: 0.3, frictionAir: 0.02, collisionFilter: { category: CATEGORY.ENEMY, mask: CATEGORY.ENVIRONMENT | CATEGORY.PLAYER_ATTACK | CATEGORY.PLAYER } }); goomba.gameData = { hp: config.enemyHP, maxHp: config.enemyHP, state: 'PATROL', patrolLeft: x - 150, patrolRight: x + 150, patrolDirection: 1, lastAttackTime: 0, attackCooldown: 800 - (config.levelNum * 10), animFrame: 0, animTimer: 0, speed: config.enemySpeed, damage: config.enemyDamage, isGrounded: false, canRespawn: canRespawn }; return goomba }
+        function initLevel(levelNum, diff) {
+            if (engine) { World.clear(engine.world); Engine.clear(engine) } engine = Engine.create(); engine.gravity.y = 1; world = engine.world; levelConfig = generateLevel(levelNum, diff); generateClouds(); generateMountains(); generatePipes(); generateBrickStairs(); generateBushes(); generateFloatingPlatforms(); generateMovingPlatforms(); generateCoins(); generateQuestionBlocks(); platformBodies = []; mushrooms = [];
+            floor = Bodies.rectangle(levelConfig.levelWidth / 2, GROUND_Y + 25, levelConfig.levelWidth, 50, { isStatic: true, label: 'floor', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+            platformBodies.push(floor);
+            pipes.forEach(pipe => {
+                const pipeTop = Bodies.rectangle(pipe.x, pipe.y - pipe.height - 5, 50, 10, { isStatic: true, label: 'platform', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                const pipeBody = Bodies.rectangle(pipe.x, pipe.y - pipe.height / 2, 40, pipe.height, { isStatic: true, label: 'pipeBody', collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                platformBodies.push(pipeTop); World.add(world, pipeBody)
+            });
+            brickStairs.forEach(stairs => {
+                const brickSize = 30;
+                for (let step = 0; step < stairs.steps; step++) {
+                    for (let brick = 0; brick <= step; brick++) {
+                        const brickX = stairs.x + (brick * brickSize) + brickSize / 2;
+                        const brickY = stairs.y - (step * brickSize) - brickSize / 2;
+                        const brickBody = Bodies.rectangle(brickX, brickY, brickSize, brickSize, { isStatic: true, label: 'platform', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                        platformBodies.push(brickBody)
+                    }
+                }
+            });
+            floatingPlatforms.forEach(plat => {
+                const brickSize = 30;
+                if (!plat.isCloud) {
+                    for (let i = 0; i < plat.width; i++) {
+                        const brickX = plat.x + (i * brickSize);
+                        const platformBlock = Bodies.rectangle(brickX, plat.y, brickSize, brickSize, { isStatic: true, label: 'platform', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                        platformBodies.push(platformBlock)
+                    }
+                } else {
+                    const platformBlock = Bodies.rectangle(plat.x + (plat.width * 15), plat.y, plat.width * 30, 15, { isStatic: true, label: 'platform', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                    platformBodies.push(platformBlock)
+                }
+            });
+            movingPlatforms.forEach(movPlat => {
+                movPlat.bodies = [];
+                const brickSize = 30;
+                for (let i = 0; i < movPlat.width; i++) {
+                    const brickX = movPlat.x + (i * brickSize);
+                    const platformBlock = Bodies.rectangle(brickX, movPlat.y, brickSize, brickSize, { isStatic: true, label: 'platform', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                    platformBodies.push(platformBlock); movPlat.bodies.push(platformBlock); World.add(world, platformBlock)
+                }
+            });
+            player = Bodies.rectangle(100, GROUND_Y - playerSize / 2 - 100, playerSize, playerSize, { label: 'player', friction: 0.3, frictionAir: 0.02, inertia: Infinity, collisionFilter: { category: CATEGORY.PLAYER, mask: CATEGORY.ENVIRONMENT | CATEGORY.ENEMY } });
+            player.gameData = { hp: 100, maxHp: 100, isInvulnerable: false, facingRight: true, dodgeEndTime: 0, lastHitTime: null, animFrame: 0, animTimer: 0, state: 'idle', damage: levelConfig.playerDamage, isGrounded: false, canJump: false, coins: 0, hasSword: true, isBig: false };
+            World.add(world, [...platformBodies, player]);
+            enemies = [];
+            const spacing = levelConfig.levelWidth / (levelConfig.enemyCount + 1);
+            for (let i = 0; i < levelConfig.enemyCount; i++) {
+                const x = spacing * (i + 1);
+                const spawnY = GROUND_Y - 50;
+                const enemy = createGoomba(x, spawnY, levelConfig);
+                enemies.push(enemy); World.add(world, enemy)
+            }
+            flag = Bodies.rectangle(levelConfig.levelWidth - 200, GROUND_Y - 60, 20, 120, { isStatic: true, isSensor: true, label: 'flag' });
+            flag.gameData = { isReached: false }; World.add(world, flag);
+            gameState.isGameOver = false; gameState.isVictory = false; gameState.hitStopEndTime = 0; cameraX = 0; particles = []; attackHitbox = null; updateHearts(); updateEnemyCount(); updateUI()
+        }
         function updateHearts() { const container = document.getElementById('heartContainer'); const hearts = Math.ceil(player.gameData.hp / 20); container.innerHTML = ''; for (let i = 0; i < 5; i++) { const heart = document.createElement('span'); heart.className = i < hearts ? 'heart' : 'heart empty'; heart.textContent = '♥'; container.appendChild(heart) } }
         function updateEnemyCount() { document.getElementById('enemyCount').textContent = enemies.length }
-        function updateUI() { document.getElementById('currentLevel').textContent = currentLevel; document.getElementById('difficultyDisplay').textContent = DIFFICULTY_SETTINGS[difficulty].name; document.getElementById('scoreDisplay').textContent = totalScore; document.getElementById('coinDisplay').textContent = player.gameData.coins }
+        function showNotification(text) { const el = document.getElementById('notification'); el.textContent = text; el.style.display = 'block'; setTimeout(() => { if (el.textContent === text) el.style.display = 'none' }, 2000) }
+        function updateUI() {
+            document.getElementById('currentLevel').textContent = currentLevel;
+            document.getElementById('difficultyDisplay').textContent = DIFFICULTY_SETTINGS[difficulty].name;
+            document.getElementById('scoreDisplay').textContent = totalScore;
+            document.getElementById('coinDisplay').textContent = player.gameData.coins;
+            const remainingCoins = coins.filter(c => !c.collected).length;
+            const remainingBlockCoins = questionBlocks.reduce((acc, b) => acc + (b.hit ? 0 : b.coins), 0);
+            document.getElementById('coinsLeft').textContent = remainingCoins + remainingBlockCoins;
+        }
         function startGame(diff) { difficulty = diff; document.getElementById('mainMenu').classList.add('hidden'); initLevel(currentLevel, difficulty); gameRunning = true; gameLoop() }
         function nextLevel() { if (currentLevel < 50) { currentLevel++; if (currentLevel > maxUnlockedLevel) maxUnlockedLevel = currentLevel; document.getElementById('overlay').classList.remove('show'); initLevel(currentLevel, difficulty) } else { document.getElementById('overlayTitle').textContent = '🎉 GAME COMPLETE! 🎉'; document.getElementById('overlaySubtitle').textContent = `Final Score: ${totalScore}` } }
+        function restartLevel() { document.getElementById('overlay').classList.remove('show'); initLevel(currentLevel, difficulty) }
         function backToMenu() { document.getElementById('overlay').classList.remove('show'); document.getElementById('mainMenu').classList.remove('hidden'); document.getElementById('menuLevel').textContent = currentLevel; gameRunning = false }
         const inputState = gameState.inputState;
         document.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') { e.preventDefault(); inputState.left = true } if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') { e.preventDefault(); inputState.right = true } if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w' || e.key === ' ') { e.preventDefault(); inputState.up = true } if (e.key.toLowerCase() === 'x' || e.key.toLowerCase() === 'b') { e.preventDefault(); inputState.attack = true } if (e.key === 'Shift' || e.key.toLowerCase() === 'c') { e.preventDefault(); inputState.roll = true } });
-        document.addEventListener('keyup', e => { if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') inputState.left = false; if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') inputState.right = false; if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w' || e.key === ' ') inputState.up = false; if (e.key.toLowerCase() === 'x' || e.key.toLowerCase() === 'b') inputState.attack = false; if (e.key === 'Shift' || e.key.toLowerCase() === 'c') inputState.roll = false });
+        document.addEventListener('keyup', e => { if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') inputState.left = false; if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') inputState.right = false; if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w' || e.key.toLowerCase() === ' ') inputState.up = false; if (e.key.toLowerCase() === 'x' || e.key.toLowerCase() === 'b') inputState.attack = false; if (e.key === 'Shift' || e.key.toLowerCase() === 'c') inputState.roll = false });
         function setupButton(id, input) { const btn = document.getElementById(id); btn.addEventListener('touchstart', e => { e.preventDefault(); inputState[input] = true }); btn.addEventListener('touchend', e => { e.preventDefault(); inputState[input] = false }); btn.addEventListener('mousedown', () => inputState[input] = true); btn.addEventListener('mouseup', () => inputState[input] = false) }
         setupButton('leftBtn', 'left'); setupButton('upBtn', 'up'); setupButton('rightBtn', 'right'); setupButton('attackBtn', 'attack'); setupButton('rollBtn', 'roll');
-        function checkGrounded(body) { const checkDist = 3; const testPoint = { x: body.position.x, y: body.position.y + playerSize / 2 + checkDist }; return platformBodies.some(platform => { const bounds = platform.bounds; return testPoint.x >= bounds.min.x && testPoint.x <= bounds.max.x && testPoint.y >= bounds.min.y && testPoint.y <= bounds.max.y + 5 }) }
-        function gameLoop() { if (!gameRunning) return; const currentTime = Date.now(); if (gameState.hitStopEndTime > currentTime) { render(); requestAnimationFrame(gameLoop); return } if (!gameState.isGameOver && !gameState.isVictory) { Engine.update(engine, 1000 / 60); player.gameData.isGrounded = checkGrounded(player); player.gameData.canJump = player.gameData.isGrounded; enemies.forEach(enemy => { enemy.gameData.isGrounded = checkGrounded(enemy) }); if (player.position.y > GROUND_Y) { Body.setPosition(player, { x: player.position.x, y: GROUND_Y }); Body.setVelocity(player, { x: player.velocity.x, y: 0 }); player.gameData.isGrounded = true; player.gameData.canJump = true } enemies.forEach(enemy => { if (enemy.position.y > GROUND_Y) { Body.setPosition(enemy, { x: enemy.position.x, y: GROUND_Y }); Body.setVelocity(enemy, { x: enemy.velocity.x, y: 0 }); enemy.gameData.isGrounded = true } }); cameraX = Math.max(0, Math.min(player.position.x - canvas.width / 3, levelConfig.levelWidth - canvas.width)); clouds.forEach(cloud => { cloud.x += cloud.speed; if (cloud.x > levelConfig.levelWidth + 100) cloud.x = -100 }); player.gameData.state = Math.abs(player.velocity.x) > 0.5 ? 'run' : 'idle'; if (player.gameData.state === 'run' && currentTime - player.gameData.animTimer > 100) { player.gameData.animFrame = (player.gameData.animFrame + 1) % 4; player.gameData.animTimer = currentTime } if (player.gameData.dodgeEndTime > currentTime) { player.gameData.state = 'roll'; player.gameData.isInvulnerable = true; player.collisionFilter.mask = CATEGORY.ENVIRONMENT } else { player.gameData.isInvulnerable = false; player.collisionFilter.mask = CATEGORY.ENVIRONMENT | CATEGORY.ENEMY } let targetVelocityX = 0; if (inputState.left) { targetVelocityX = -PLAYER_SPEED; player.gameData.facingRight = false } if (inputState.right) { targetVelocityX = PLAYER_SPEED; player.gameData.facingRight = true } Body.setVelocity(player, { x: targetVelocityX, y: player.velocity.y }); if (inputState.up && !inputState.jumpHandled && player.gameData.canJump) { Body.setVelocity(player, { x: player.velocity.x, y: -JUMP_FORCE }); inputState.jumpHandled = true; createParticles(player.position.x, player.position.y + playerSize / 2, 'dust', 5) } if (!inputState.up) inputState.jumpHandled = false; if (inputState.roll && !inputState.rollHandled && player.gameData.dodgeEndTime <= currentTime) { const dodgeDirection = player.gameData.facingRight ? 1 : -1; Body.setVelocity(player, { x: DODGE_IMPULSE * dodgeDirection, y: player.velocity.y }); player.gameData.dodgeEndTime = currentTime + DODGE_DURATION; inputState.rollHandled = true; createParticles(player.position.x, player.position.y, 'dust', 8) } if (!inputState.roll) inputState.rollHandled = false; if (inputState.attack && !inputState.attackHandled) { player.gameData.state = 'attack'; const offsetX = player.gameData.facingRight ? playerSize / 2 + 20 : -(playerSize / 2 + 20); attackHitbox = Bodies.rectangle(player.position.x + offsetX, player.position.y, 35, 45, { isSensor: true, label: 'playerHitbox', collisionFilter: { category: CATEGORY.PLAYER_ATTACK, mask: CATEGORY.ENEMY } }); attackHitbox.gameData = { createdTime: currentTime, hasHit: false }; World.add(world, attackHitbox); inputState.attackHandled = true } if (!inputState.attack) inputState.attackHandled = false; if (attackHitbox && currentTime - attackHitbox.gameData.createdTime > ATTACK_DURATION) { World.remove(world, attackHitbox); attackHitbox = null } enemies.forEach(enemy => { const distance = Math.abs(enemy.position.x - player.position.x); const direction = player.position.x > enemy.position.x ? 1 : -1; const eData = enemy.gameData; if (enemy.gameData.isGrounded) { if (distance < ATTACK_DISTANCE) { eData.state = 'ATTACK'; if (currentTime - eData.lastAttackTime > eData.attackCooldown) { Body.setVelocity(enemy, { x: eData.speed * 3 * direction, y: enemy.velocity.y }); eData.lastAttackTime = currentTime } } else if (distance < AGGRO_DISTANCE) { eData.state = 'AGGRO'; Body.setVelocity(enemy, { x: eData.speed * direction, y: enemy.velocity.y }) } else { eData.state = 'PATROL'; if (enemy.position.x <= eData.patrolLeft) eData.patrolDirection = 1; else if (enemy.position.x >= eData.patrolRight) eData.patrolDirection = -1; Body.setVelocity(enemy, { x: eData.speed * eData.patrolDirection, y: enemy.velocity.y }) } } if (currentTime - eData.animTimer > 150) { eData.animFrame = (eData.animFrame + 1) % 4; eData.animTimer = currentTime } }); const pairs = Matter.Query.collides(player, enemies); pairs.forEach(pair => { if (!player.gameData.isInvulnerable && !player.gameData.lastHitTime) { const enemy = pair.bodyA === player ? pair.bodyB : pair.bodyA; player.gameData.hp -= enemy.gameData.damage; player.gameData.lastHitTime = currentTime; gameState.hitStopEndTime = currentTime + HIT_STOP_DURATION; updateHearts(); createParticles(player.position.x, player.position.y, 'hit', 10); setTimeout(() => { player.gameData.lastHitTime = null }, 500); if (player.gameData.hp <= 0) { gameState.isGameOver = true; document.getElementById('overlayTitle').textContent = 'GAME OVER'; document.getElementById('overlaySubtitle').textContent = `World ${currentLevel} Failed!`; document.getElementById('overlay').classList.add('show') } } }); if (attackHitbox && !attackHitbox.gameData.hasHit) { enemies.forEach((enemy, index) => { const hit = Matter.Query.collides(attackHitbox, [enemy]); if (hit.length > 0) { enemy.gameData.hp -= player.gameData.damage; attackHitbox.gameData.hasHit = true; gameState.hitStopEndTime = currentTime + HIT_STOP_DURATION; createParticles(enemy.position.x, enemy.position.y, 'hit', 15); if (enemy.gameData.hp <= 0) { createParticles(enemy.position.x, enemy.position.y, 'defeat', 25); World.remove(world, enemy); enemies.splice(index, 1); totalScore += 100; updateEnemyCount(); updateUI() } } }) } if (enemies.length === 0 && !flag.gameData.isReached) { flag.gameData.isReached = true; gameState.isVictory = true; totalScore += (currentLevel * 500); document.getElementById('overlayTitle').textContent = levelConfig.isBossLevel ? '👑 BOSS CLEARED!' : 'WORLD CLEAR!'; document.getElementById('overlaySubtitle').textContent = `Score: +${currentLevel * 500}`; document.getElementById('overlay').classList.add('show'); createParticles(flag.position.x, flag.position.y, 'hit', 30) } updateParticles() } render(); requestAnimationFrame(gameLoop) }
-        function render() { const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height); gradient.addColorStop(0, '#5C94FC'); gradient.addColorStop(1, '#8CB4FC'); ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = '#000000'; ctx.lineWidth = 2; clouds.forEach(cloud => { const x = cloud.x - cameraX, y = cloud.y; ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2); ctx.arc(x + 15, y - 5, 25, 0, Math.PI * 2); ctx.arc(x + 35, y, 22, 0, Math.PI * 2); ctx.arc(x + 25, y + 5, 20, 0, Math.PI * 2); ctx.fill(); ctx.stroke() }); mountains.forEach(mountain => { const x = mountain.x - cameraX, y = mountain.y; ctx.fillStyle = '#5CAD5C'; ctx.strokeStyle = '#000000'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + mountain.width / 2, y - mountain.height); ctx.lineTo(x + mountain.width, y); ctx.closePath(); ctx.fill(); ctx.stroke() }); bushes.forEach(bush => { const x = bush.x - cameraX, y = bush.y; ctx.fillStyle = '#228B22'; ctx.strokeStyle = '#006400'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y - 8, 12, 0, Math.PI * 2); ctx.arc(x - 10, y - 4, 10, 0, Math.PI * 2); ctx.arc(x + 10, y - 4, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke() }); pipes.forEach(pipe => { const x = pipe.x - cameraX, y = pipe.y; ctx.fillStyle = '#00AA00'; ctx.strokeStyle = '#006600'; ctx.lineWidth = 3; ctx.fillRect(x - 20, y - pipe.height, 40, pipe.height); ctx.strokeRect(x - 20, y - pipe.height, 40, pipe.height); ctx.fillStyle = '#00CC00'; ctx.fillRect(x - 25, y - pipe.height - 10, 50, 10); ctx.strokeRect(x - 25, y - pipe.height - 10, 50, 10); ctx.fillStyle = '#00FF00'; ctx.fillRect(x - 15, y - pipe.height + 5, 8, pipe.height - 10); ctx.fillStyle = '#004400'; ctx.fillRect(x + 10, y - pipe.height + 5, 8, pipe.height - 10) }); brickStairs.forEach(stairs => { const x = stairs.x - cameraX, y = stairs.y, brickSize = 30; for (let step = 0; step < stairs.steps; step++) { for (let brick = 0; brick <= step; brick++) { const brickX = x + (brick * brickSize), brickY = y - (step * brickSize); ctx.fillStyle = '#CC6600'; ctx.fillRect(brickX, brickY, brickSize, brickSize); ctx.strokeStyle = '#994400'; ctx.lineWidth = 2; ctx.strokeRect(brickX, brickY, brickSize, brickSize); ctx.strokeStyle = '#FF8833'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(brickX, brickY); ctx.lineTo(brickX + brickSize, brickY); ctx.stroke() } } }); floatingPlatforms.forEach(plat => { const brickSize = 30; for (let i = 0; i < plat.width; i++) { const brickX = plat.x + (i * brickSize) - cameraX; const brickY = plat.y; ctx.fillStyle = '#CC6600'; ctx.fillRect(brickX, brickY - brickSize / 2, brickSize, brickSize); ctx.strokeStyle = '#994400'; ctx.lineWidth = 2; ctx.strokeRect(brickX, brickY - brickSize / 2, brickSize, brickSize); ctx.strokeStyle = '#FF8833'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(brickX, brickY - brickSize / 2); ctx.lineTo(brickX + brickSize, brickY - brickSize / 2); ctx.stroke() } }); const bodies = Matter.Composite.allBodies(world); bodies.forEach(body => { ctx.save(); ctx.translate(body.position.x - cameraX, body.position.y); if (body.label === 'player') { ctx.globalAlpha = player.gameData.isInvulnerable ? 0.5 : 1; if (!player.gameData.facingRight) ctx.scale(-1, 1); ctx.fillStyle = '#FF0000'; ctx.fillRect(-12, -playerSize / 2 + 2, 24, 8); ctx.fillStyle = '#FFCC99'; ctx.fillRect(-10, -playerSize / 2 + 10, 20, 12); ctx.fillStyle = '#000'; ctx.fillRect(-6, -playerSize / 2 + 12, 3, 3); ctx.fillRect(3, -playerSize / 2 + 12, 3, 3); ctx.fillStyle = '#8B4513'; ctx.fillRect(-8, -playerSize / 2 + 18, 16, 3); ctx.fillStyle = '#FF0000'; ctx.fillRect(-12, -playerSize / 2 + 22, 24, 14); ctx.fillStyle = '#0066FF'; ctx.fillRect(-10, -playerSize / 2 + 32, 8, 12); ctx.fillRect(2, -playerSize / 2 + 32, 8, 12); ctx.fillStyle = '#FFD700'; ctx.fillRect(-2, -playerSize / 2 + 25, 4, 4); ctx.fillStyle = '#FFCC99'; ctx.fillRect(-15, -playerSize / 2 + 24, 3, 10); ctx.fillRect(12, -playerSize / 2 + 24, 3, 10); ctx.fillStyle = '#8B4513'; ctx.fillRect(-10, -playerSize / 2 + 44, 8, 4); ctx.fillRect(2, -playerSize / 2 + 44, 8, 4) } else if (body.label === 'goomba') { const eData = body.gameData; if (levelConfig.isBossLevel) ctx.scale(1.3, 1.3); ctx.fillStyle = '#8B4513'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 17, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#FFF'; ctx.fillRect(-10, -8, 8, 8); ctx.fillRect(2, -8, 8, 8); ctx.fillStyle = '#000'; ctx.fillRect(-8, -6, 4, 4); ctx.fillRect(4, -6, 4, 4); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(-2, -12); ctx.moveTo(2, -12); ctx.lineTo(10, -10); ctx.stroke(); ctx.fillStyle = '#FFF'; ctx.fillRect(-6, 8, 3, 4); ctx.fillRect(3, 8, 3, 4); ctx.fillStyle = '#8B4513'; const footOffset = Math.sin(eData.animFrame) * 3; ctx.fillRect(-12, 14, 8, 6); ctx.fillRect(4, 14 + footOffset, 8, 6) } else if (body.label === 'flag') { const reached = flag.gameData.isReached; ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -60); ctx.lineTo(0, 60); ctx.stroke(); ctx.fillStyle = reached ? '#FFD700' : '#00FF00'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -60); ctx.lineTo(40, -50); ctx.lineTo(40, -30); ctx.lineTo(0, -40); ctx.closePath(); ctx.fill(); ctx.stroke(); if (reached) { ctx.font = '24px Arial'; ctx.fillText('★', 8, -35) } } else if (body.label === 'floor') { const width = body.bounds.max.x - body.bounds.min.x, height = body.bounds.max.y - body.bounds.min.y; ctx.fillStyle = '#CC6600'; ctx.fillRect(-width / 2, -height / 2, width, height); ctx.strokeStyle = '#994400'; ctx.lineWidth = 2; const brickWidth = 40, brickHeight = 20; for (let x = -width / 2; x < width / 2; x += brickWidth) { for (let y = -height / 2; y < height / 2; y += brickHeight) { ctx.strokeRect(x, y, brickWidth, brickHeight) } } ctx.strokeStyle = '#FF8833'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-width / 2, -height / 2); ctx.lineTo(width / 2, -height / 2); ctx.stroke() } ctx.restore() }); drawParticles() }
+        function checkGrounded(body) { const checkDist = 3; const halfHeight = (body.bounds.max.y - body.bounds.min.y) / 2; const testPoint = { x: body.position.x, y: body.position.y + halfHeight + checkDist }; return platformBodies.some(platform => { const bounds = platform.bounds; return testPoint.x >= bounds.min.x && testPoint.x <= bounds.max.x && testPoint.y >= bounds.min.y && testPoint.y <= bounds.max.y + 5 }) }
+        function gameLoop() {
+            if (!gameRunning) return;
+            const currentTime = Date.now();
+            if (gameState.hitStopEndTime > currentTime) {
+                render();
+                requestAnimationFrame(gameLoop);
+                return
+            }
+            // If game over or victory, we still render but skip physics/logic
+            if (gameState.isGameOver || gameState.isVictory) {
+                render();
+                requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            const viewLeft = cameraX - 100, viewRight = cameraX + canvas.width + 100;
+            Engine.update(engine, 1000 / 60);
+            player.gameData.isGrounded = checkGrounded(player);
+            player.gameData.canJump = player.gameData.isGrounded;
+
+            enemies.forEach(enemy => { enemy.gameData.isGrounded = checkGrounded(enemy) });
+
+            if (player.position.y > GROUND_Y) {
+                Body.setPosition(player, { x: player.position.x, y: GROUND_Y });
+                Body.setVelocity(player, { x: player.velocity.x, y: 0 });
+                player.gameData.isGrounded = true; player.gameData.canJump = true;
+            }
+
+            movingPlatforms.forEach(mp => {
+                mp.x += mp.direction * mp.speed;
+                if (mp.x >= mp.endX || mp.x <= mp.startX) mp.direction *= -1;
+                mp.bodies.forEach((body, index) => { Body.setPosition(body, { x: mp.x + (index * 30), y: mp.y }) })
+            });
+
+            cameraX = Math.max(0, Math.min(player.position.x - canvas.width / 3, levelConfig.levelWidth - canvas.width));
+            clouds.forEach(cloud => { cloud.x += cloud.speed; if (cloud.x > levelConfig.levelWidth + 100) cloud.x = -100 });
+
+            coins.forEach(coin => {
+                if (!coin.collected) {
+                    coin.animFrame = (coin.animFrame + 1) % 8;
+                    const dist = Math.abs(player.position.x - coin.x) + Math.abs(player.position.y - coin.y);
+                    if (dist < 30) {
+                        coin.collected = true; player.gameData.coins++; totalScore += 10;
+                        createParticles(coin.x, coin.y, 'coin', 10); playSound('coin'); updateUI();
+                    }
+                }
+            });
+
+            mushrooms.forEach((m, idx) => {
+                m.x += m.vx;
+                const onPlatform = platformBodies.some(p => {
+                    const b = p.bounds;
+                    return m.x >= b.min.x && m.x <= b.max.x && Math.abs(m.y - b.min.y) < 5;
+                });
+                if (!onPlatform && m.y < GROUND_Y) m.y += 2;
+                else if (m.y > GROUND_Y) m.y = GROUND_Y;
+
+                const dist = Math.abs(player.position.x - m.x) + Math.abs(player.position.y - m.y);
+                if (dist < 40) {
+                    player.gameData.isBig = true; player.gameData.hp = Math.min(player.gameData.hp + 50, 100);
+                    player.gameData.damage = levelConfig.playerDamage * 2;
+                    createParticles(m.x, m.y, 'coin', 15); playSound('victory');
+                    mushrooms.splice(idx, 1); updateHearts();
+                }
+            });
+
+            questionBlocks.forEach(block => {
+                if (!block.hit && block.bumping && currentTime - block.bumpTime > 200) { block.bumping = false }
+                if (!block.hit) {
+                    const dist = Math.abs(player.position.x - block.x) + Math.abs(player.position.y - (block.y + 15));
+                    if (dist < 35 && player.velocity.y < 0) {
+                        block.bumping = true; block.bumpTime = currentTime;
+                        if (block.isMushroom) {
+                            block.hit = true;
+                            mushrooms.push({ x: block.x + 15, y: block.y - 15, vx: 2 });
+                        } else if (block.coins > 0) {
+                            block.coins--; if (block.coins <= 0) block.hit = true;
+                            coins.push({ x: block.x + 15, y: block.y - 30, collected: false, animFrame: 0 });
+                            createParticles(block.x + 15, block.y, 'coin', 5); playSound('coin'); totalScore += 10;
+                        }
+                    }
+                }
+            });
+
+            player.gameData.state = Math.abs(player.velocity.x) > 0.5 ? 'run' : 'idle';
+            if (player.gameData.state === 'run' && currentTime - player.gameData.animTimer > 100) {
+                player.gameData.animFrame = (player.gameData.animFrame + 1) % 4; player.gameData.animTimer = currentTime
+            }
+
+            if (player.gameData.dodgeEndTime > currentTime) {
+                player.gameData.state = 'roll'; player.gameData.isInvulnerable = true;
+                player.collisionFilter.mask = CATEGORY.ENVIRONMENT
+            } else {
+                player.gameData.isInvulnerable = false; player.collisionFilter.mask = CATEGORY.ENVIRONMENT | CATEGORY.ENEMY
+            }
+
+            let targetVelocityX = 0;
+            if (inputState.left) { targetVelocityX = -PLAYER_SPEED; player.gameData.facingRight = false }
+            if (inputState.right) { targetVelocityX = PLAYER_SPEED; player.gameData.facingRight = true }
+            Body.setVelocity(player, { x: targetVelocityX, y: player.velocity.y });
+
+            if (inputState.up && !inputState.jumpHandled && player.gameData.canJump) {
+                Body.setVelocity(player, { x: player.velocity.x, y: -JUMP_FORCE });
+                inputState.jumpHandled = true; playSound('jump');
+                createParticles(player.position.x, player.position.y + 20, 'dust', 5)
+            }
+            if (!inputState.up) inputState.jumpHandled = false;
+
+            if (inputState.roll && !inputState.rollHandled && player.gameData.dodgeEndTime <= currentTime) {
+                const dir = player.gameData.facingRight ? 1 : -1;
+                Body.setVelocity(player, { x: DODGE_IMPULSE * dir, y: player.velocity.y });
+                player.gameData.dodgeEndTime = currentTime + DODGE_DURATION; inputState.rollHandled = true;
+                createParticles(player.position.x, player.position.y, 'dust', 8)
+            }
+            if (!inputState.roll) inputState.rollHandled = false;
+
+            if (inputState.attack && !inputState.attackHandled) {
+                player.gameData.state = 'attack';
+                const offX = player.gameData.facingRight ? 40 : -40;
+                attackHitbox = Bodies.rectangle(player.position.x + offX, player.position.y, 40, 50, { isSensor: true, label: 'playerHitbox', collisionFilter: { category: CATEGORY.PLAYER_ATTACK, mask: CATEGORY.ENEMY } });
+                attackHitbox.gameData = { createdTime: currentTime, hasHit: false };
+                World.add(world, attackHitbox); inputState.attackHandled = true;
+                createParticles(player.position.x + offX, player.position.y, 'slash', 8);
+            }
+            if (!inputState.attack) inputState.attackHandled = false;
+
+            if (attackHitbox && currentTime - attackHitbox.gameData.createdTime > ATTACK_DURATION) { World.remove(world, attackHitbox); attackHitbox = null }
+
+            enemies.forEach(enemy => {
+                const dist = Math.abs(enemy.position.x - player.position.x);
+                const dir = player.position.x > enemy.position.x ? 1 : -1;
+                const eD = enemy.gameData;
+                if (eD.isGrounded) {
+                    if (dist < ATTACK_DISTANCE) {
+                        eD.state = 'ATTACK';
+                        if (currentTime - eD.lastAttackTime > eD.attackCooldown) { Body.setVelocity(enemy, { x: eD.speed * 3 * dir, y: enemy.velocity.y }); eD.lastAttackTime = currentTime }
+                    } else if (dist < AGGRO_DISTANCE) {
+                        eD.state = 'AGGRO'; Body.setVelocity(enemy, { x: eD.speed * dir, y: enemy.velocity.y })
+                    } else {
+                        eD.state = 'PATROL';
+                        if (enemy.position.x <= eD.patrolLeft) eD.patrolDirection = 1;
+                        else if (enemy.position.x >= eD.patrolRight) eD.patrolDirection = -1;
+                        Body.setVelocity(enemy, { x: eD.speed * eD.patrolDirection, y: enemy.velocity.y })
+                    }
+                }
+            });
+
+            const pairs = Matter.Query.collides(player, enemies);
+            pairs.forEach(pair => {
+                if (!player.gameData.isInvulnerable && !player.gameData.lastHitTime) {
+                    const enemy = pair.bodyA === player ? pair.bodyB : pair.bodyA;
+                    player.gameData.hp -= enemy.gameData.damage; player.gameData.lastHitTime = currentTime;
+                    gameState.hitStopEndTime = currentTime + HIT_STOP_DURATION;
+                    updateHearts(); playSound('hit'); createParticles(player.position.x, player.position.y, 'hit', 10);
+                    setTimeout(() => { player.gameData.lastHitTime = null }, 500);
+                    if (player.gameData.hp <= 0) {
+                        gameState.isGameOver = true;
+                        document.getElementById('overlayTitle').textContent = 'GAME OVER';
+                        document.getElementById('overlaySubtitle').textContent = 'Restart the world?';
+                        const actionBtn = document.getElementById('overlayActionBtn');
+                        actionBtn.textContent = 'RETRY';
+                        actionBtn.onclick = restartLevel;
+                        document.getElementById('overlay').classList.add('show')
+                    }
+                }
+            });
+
+            if (attackHitbox && !attackHitbox.gameData.hasHit) {
+                let toRemove = [];
+                enemies.forEach((enemy, idx) => {
+                    const hit = Matter.Query.collides(attackHitbox, [enemy]);
+                    if (hit.length > 0) {
+                        enemy.gameData.hp -= player.gameData.damage;
+                        attackHitbox.gameData.hasHit = true;
+                        gameState.hitStopEndTime = currentTime + HIT_STOP_DURATION;
+                        createParticles(enemy.position.x, enemy.position.y, 'hit', 15);
+                        if (enemy.gameData.hp <= 0) {
+                            toRemove.push(enemy);
+                        }
+                    }
+                });
+
+                toRemove.forEach(enemy => {
+                    playSound('defeat'); createParticles(enemy.position.x, enemy.position.y, 'defeat', 25);
+                    const ex = enemy.position.x, ey = enemy.position.y;
+                    World.remove(world, enemy);
+                    const cleanIdx = enemies.indexOf(enemy);
+                    if (cleanIdx !== -1) enemies.splice(cleanIdx, 1);
+
+                    // Spawn 2 new enemies on death ONLY if the original can respawn
+                    if (enemy.gameData.canRespawn) {
+                        for (let i = 0; i < 2; i++) {
+                            const ne = createGoomba(ex + (i === 0 ? -40 : 40), ey - 50, levelConfig, false);
+                            enemies.push(ne); World.add(world, ne);
+                        }
+                    }
+                    totalScore += 100; updateEnemyCount(); updateUI();
+                });
+            }
+
+            if (Matter.Query.collides(player, [flag]).length > 0 && !flag.gameData.isReached) {
+                const remainingCoins = coins.filter(c => !c.collected).length;
+                const remainingBlockCoins = questionBlocks.reduce((acc, b) => acc + (b.hit ? 0 : b.coins), 0);
+                const totalLeft = remainingCoins + remainingBlockCoins;
+
+                if (totalLeft > 0) {
+                    if (currentTime - (flag.gameData.lastWarnTime || 0) > 2000) {
+                        showNotification(`COLLECT ALL COINS! (${totalLeft} LEFT)`);
+                        flag.gameData.lastWarnTime = currentTime;
+                    }
+                } else {
+                    flag.gameData.isReached = true; gameState.isVictory = true; playSound('victory');
+                    let bonus = enemies.length === 0 ? 1000 : 0;
+                    totalScore += (currentLevel * 500) + bonus;
+                    totalScore += (player.gameData.coins * 10);
+                    document.getElementById('overlayTitle').textContent = levelConfig.isBossLevel ? '👑 BOSS CLEARED!' : 'WORLD CLEAR!';
+                    document.getElementById('overlaySubtitle').textContent = `Score: +${currentLevel * 500} ${bonus > 0 ? '| Full Clear Bonus: +1000' : ''} | Coins: ${player.gameData.coins}`;
+                    const actionBtn = document.getElementById('overlayActionBtn');
+                    actionBtn.textContent = 'NEXT WORLD';
+                    actionBtn.onclick = nextLevel;
+                    document.getElementById('overlay').classList.add('show');
+                }
+            }
+            enemies = enemies.filter((enemy, idx) => {
+                if (enemy.position.y > GROUND_Y + 200) {
+                    World.remove(world, enemy);
+                    return false;
+                }
+                return true;
+            });
+            updateParticles()
+            render();
+            requestAnimationFrame(gameLoop)
+        }
+        function render() {
+            const theme = levelConfig.theme;
+            const viewLeft = cameraX - 100, viewRight = cameraX + canvas.width + 100;
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            if (theme === 'NORMAL') {
+                gradient.addColorStop(0, '#5C94FC'); gradient.addColorStop(1, '#8CB4FC');
+            } else if (theme === 'UNDERGROUND') {
+                gradient.addColorStop(0, '#000000'); gradient.addColorStop(1, '#202020');
+            } else if (theme === 'SKY') {
+                gradient.addColorStop(0, '#CCFEFF'); gradient.addColorStop(1, '#FFFFFF');
+            } else if (theme === 'CASTLE') {
+                gradient.addColorStop(0, '#200000'); gradient.addColorStop(1, '#400000');
+            }
+            ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = '#000000'; ctx.lineWidth = 2;
+            if (theme !== 'UNDERGROUND') {
+                clouds.forEach(cloud => {
+                    if (cloud.x < viewLeft - 100 || cloud.x > viewRight) return;
+                    const x = cloud.x - cameraX, y = cloud.y;
+                    ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2); ctx.arc(x + 15, y - 5, 25, 0, Math.PI * 2); ctx.arc(x + 35, y, 22, 0, Math.PI * 2); ctx.arc(x + 25, y + 5, 20, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                });
+            } else {
+                for (let i = Math.floor(viewLeft / 200) * 200; i < viewRight; i += 200) {
+                    ctx.fillStyle = '#403020'; ctx.beginPath();
+                    ctx.moveTo(i - cameraX, 0); ctx.lineTo(i + 40 - cameraX, 0); ctx.lineTo(i + 20 - cameraX, 60 + Math.sin(i) * 20); ctx.fill();
+                }
+                for (let i = Math.floor(viewLeft / 250) * 250; i < viewRight; i += 250) {
+                    ctx.fillStyle = '#403020'; ctx.beginPath();
+                    ctx.moveTo(i - cameraX, GROUND_Y + 50); ctx.lineTo(i + 50 - cameraX, GROUND_Y + 50); ctx.lineTo(i + 25 - cameraX, GROUND_Y + 50 - (60 + Math.cos(i) * 20)); ctx.fill();
+                }
+            }
+
+            mountains.forEach(mountain => {
+                if (mountain.x + mountain.width < viewLeft || mountain.x > viewRight) return;
+                const x = mountain.x - cameraX, y = mountain.y;
+                let color = '#5CAD5C';
+                if (theme === 'UNDERGROUND') color = '#403020';
+                else if (theme === 'SKY') color = '#E0F0FF';
+                else if (theme === 'CASTLE') color = '#606060';
+                ctx.fillStyle = color; ctx.strokeStyle = '#000000'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + mountain.width / 2, y - mountain.height); ctx.lineTo(x + mountain.width, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+            });
+
+            bushes.forEach(bush => {
+                if (theme === 'UNDERGROUND' || theme === 'CASTLE') return;
+                if (bush.x + bush.width < viewLeft || bush.x > viewRight) return;
+                const x = bush.x - cameraX, y = bush.y;
+                ctx.fillStyle = '#228B22'; ctx.strokeStyle = '#006400'; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(x, y - 8, 12, 0, Math.PI * 2); ctx.arc(x - 10, y - 4, 10, 0, Math.PI * 2); ctx.arc(x + 10, y - 4, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            });
+
+            coins.forEach(coin => {
+                if (!coin.collected) {
+                    if (coin.x < viewLeft || coin.x > viewRight) return;
+                    const x = coin.x - cameraX, y = coin.y;
+                    const angle = (coin.animFrame / 8) * Math.PI;
+                    ctx.save(); ctx.translate(x, y); ctx.scale(Math.abs(Math.cos(angle)), 1);
+                    ctx.fillStyle = '#FFD700'; ctx.strokeStyle = '#CC9900'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    ctx.restore();
+                }
+            });
+
+            mushrooms.forEach(m => {
+                if (m.x < viewLeft || m.x > viewRight) return;
+                const x = m.x - cameraX, y = m.y;
+                ctx.fillStyle = '#FFE4C4'; ctx.beginPath(); ctx.ellipse(x, y + 5, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#FF4444'; ctx.beginPath(); ctx.arc(x, y - 5, 12, Math.PI, 0); ctx.fill();
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath(); ctx.arc(x, y - 10, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x - 6, y - 6, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x + 6, y - 6, 2, 0, Math.PI * 2); ctx.fill();
+            });
+
+            questionBlocks.forEach(block => {
+                if (block.x < viewLeft || block.x > viewRight) return;
+                const x = block.x - cameraX, y = block.y - (block.bumping ? 5 : 0);
+                const brickSize = 30;
+                ctx.fillStyle = block.hit ? '#8B4513' : '#FFD700';
+                ctx.fillRect(x, y, brickSize, brickSize);
+                ctx.strokeStyle = block.hit ? '#5C3317' : '#CC9900'; ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, brickSize, brickSize);
+                if (!block.hit) {
+                    ctx.fillStyle = '#000'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', x + brickSize / 2, y + brickSize / 2);
+                }
+            });
+
+            pipes.forEach(pipe => {
+                if (pipe.x + 50 < viewLeft || pipe.x - 50 > viewRight) return;
+                const x = pipe.x - cameraX, y = pipe.y;
+                ctx.fillStyle = theme === 'CASTLE' ? '#555' : '#00AA00';
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+                ctx.fillRect(x - 20, y - pipe.height, 40, pipe.height); ctx.strokeRect(x - 20, y - pipe.height, 40, pipe.height);
+                ctx.fillRect(x - 25, y - pipe.height - 10, 50, 10); ctx.strokeRect(x - 25, y - pipe.height - 10, 50, 10);
+            });
+
+            brickStairs.forEach(stairs => {
+                if (stairs.x + (stairs.steps * 30) < viewLeft || stairs.x > viewRight) return;
+                const x = stairs.x - cameraX, y = stairs.y, brickSize = 30;
+                for (let step = 0; step < stairs.steps; step++) {
+                    for (let brick = 0; brick <= step; brick++) {
+                        const brickX = x + (brick * brickSize), brickY = y - (step * brickSize);
+                        ctx.fillStyle = theme === 'UNDERGROUND' ? '#606060' : '#CC6600';
+                        ctx.fillRect(brickX, brickY, brickSize, brickSize);
+                        ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(brickX, brickY, brickSize, brickSize);
+                    }
+                }
+            });
+
+            floatingPlatforms.forEach(plat => {
+                if (plat.x + (plat.width * 30) < viewLeft || plat.x > viewRight) return;
+                const x = plat.x - cameraX, y = plat.y, brickSize = 30;
+                if (plat.isCloud) {
+                    ctx.fillStyle = '#FFF'; ctx.beginPath();
+                    for (let i = 0; i < plat.width + 1; i++) ctx.arc(x + i * 20, y, 15, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    for (let i = 0; i < plat.width; i++) {
+                        ctx.fillStyle = theme === 'CASTLE' ? '#444' : '#CC6600';
+                        ctx.fillRect(x + i * brickSize, y - brickSize / 2, brickSize, brickSize);
+                        ctx.strokeRect(x + i * brickSize, y - brickSize / 2, brickSize, brickSize);
+                    }
+                }
+            });
+
+            movingPlatforms.forEach(mp => {
+                if (mp.x + (mp.width * 30) < viewLeft || mp.x > viewRight) return;
+                const brickSize = 30;
+                for (let i = 0; i < mp.width; i++) {
+                    ctx.fillStyle = '#9966FF'; ctx.fillRect(mp.x + (i * brickSize) - cameraX, mp.y - brickSize / 2, brickSize, brickSize);
+                    ctx.strokeRect(mp.x + (i * brickSize) - cameraX, mp.y - brickSize / 2, brickSize, brickSize);
+                }
+            });
+
+            // Entities Culling and Optimized Drawing
+            const entitiesToDraw = [];
+            if (floor) entitiesToDraw.push(floor);
+            if (flag) entitiesToDraw.push(flag);
+            if (player) entitiesToDraw.push(player);
+            if (enemies && enemies.length > 0) entitiesToDraw.push(...enemies);
+
+            entitiesToDraw.forEach(body => {
+                if (!body || !body.position) return;
+                // Improved culling: check if body bounds overlap with view
+                if (body.bounds.max.x < viewLeft || body.bounds.min.x > viewRight) return;
+
+                ctx.save(); ctx.translate(body.position.x - cameraX, body.position.y);
+                if (body.label === 'player') {
+                    const pData = player.gameData;
+                    ctx.globalAlpha = pData.isInvulnerable ? 0.5 : 1;
+                    if (!pData.facingRight) ctx.scale(-1, 1);
+                    const sizeMult = pData.isBig ? 1.5 : 1;
+                    ctx.scale(sizeMult, sizeMult);
+                    ctx.fillStyle = '#FF0000'; ctx.fillRect(-12, -22, 24, 8);
+                    ctx.fillStyle = '#FFCC99'; ctx.fillRect(-10, -14, 20, 12);
+                    ctx.fillStyle = '#000'; ctx.fillRect(-6, -10, 3, 3); ctx.fillRect(3, -10, 3, 3);
+                    ctx.fillStyle = '#FF0000'; ctx.fillRect(-12, -2, 24, 14);
+                    ctx.fillStyle = '#0066FF'; ctx.fillRect(-10, 12, 8, 8); ctx.fillRect(2, 12, 8, 8);
+                    if (pData.hasSword && pData.state !== 'roll') {
+                        const swordAngle = pData.state === 'attack' ? -0.5 : 0.3;
+                        ctx.save(); ctx.translate(18, 0); ctx.rotate(swordAngle);
+                        ctx.fillStyle = '#C0C0C0'; ctx.fillRect(-2, -15, 4, 25);
+                        ctx.fillStyle = '#FFD700'; ctx.fillRect(-3, -16, 6, 4);
+                        ctx.restore();
+                    }
+                } else if (body.label === 'goomba') {
+                    const eData = body.gameData;
+                    if (levelConfig.isBossLevel) ctx.scale(1.3, 1.3);
+                    ctx.fillStyle = '#8B4513'; ctx.beginPath(); ctx.arc(0, 0, 17, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+                    ctx.fillStyle = '#FFF'; ctx.fillRect(-10, -8, 8, 8); ctx.fillRect(2, -8, 8, 8);
+                    ctx.fillStyle = '#000'; ctx.fillRect(-8, -6, 4, 4); ctx.fillRect(4, -6, 4, 4);
+                    ctx.fillStyle = '#8B4513'; const footOffset = Math.sin(eData.animFrame) * 3;
+                    ctx.fillRect(-12, 14, 8, 6); ctx.fillRect(4, 14 + footOffset, 8, 6);
+                } else if (body.label === 'flag') {
+                    const reached = flag.gameData.isReached;
+                    ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -60); ctx.lineTo(0, 60); ctx.stroke();
+                    ctx.fillStyle = reached ? '#FFD700' : '#00FF00'; ctx.beginPath(); ctx.moveTo(0, -60); ctx.lineTo(40, -50); ctx.lineTo(40, -30); ctx.lineTo(0, -40); ctx.closePath(); ctx.fill(); ctx.stroke();
+                } else if (body.label === 'floor') {
+                    const width = (body.bounds.max.x - body.bounds.min.x), height = (body.bounds.max.y - body.bounds.min.y);
+                    ctx.fillStyle = theme === 'CASTLE' ? '#222' : '#CC6600'; ctx.fillRect(-width / 2, -height / 2, width, height);
+                    ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+                    if (theme === 'NORMAL' || theme === 'SKY') {
+                        const startX = Math.max(-width / 2, viewLeft - body.position.x);
+                        const endX = Math.min(width / 2, viewRight - body.position.x);
+                        for (let x = Math.floor(startX / 40) * 40; x < endX; x += 40) ctx.strokeRect(x, -height / 2, 40, height);
+                    }
+                }
+                ctx.restore();
+            });
+            drawParticles();
+        }
+
         window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight });
     </script>
 </body>
