@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍄 Super Warrior - 50 Levels</title>
+    <title>🍄 PIXELIO - 50 Levels</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -93,6 +93,73 @@
             background: #FF4444;
             color: white;
             border-color: #CC0000
+        }
+
+        .menu-subtitle {
+            font-size: 24px;
+            color: #FFF;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .menu-btn {
+            background: linear-gradient(145deg, #4A8FD2, #2A6FAA);
+            color: white;
+            padding: 15px 40px;
+            font-size: 20px;
+            font-family: 'Press Start 2P', monospace;
+            border: 4px solid #FFF;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 300px;
+            text-align: center;
+            transition: all 0.2s;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .menu-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .level-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .level-select-btn {
+            width: 50px;
+            height: 50px;
+            background: #FFD700;
+            border: 2px solid #FFF;
+            color: #000;
+            font-family: 'Press Start 2P', monospace;
+            cursor: pointer;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .level-select-btn.locked {
+            background: #555;
+            color: #888;
+            cursor: not-allowed;
+            box-shadow: none;
         }
 
         .level-info {
@@ -366,15 +433,32 @@
 
 <body>
     <div id="mainMenu">
-        <div class="menu-title">SUPER WARRIOR</div>
-        <div class="level-info">
-            <div>WORLD <span id="menuLevel">1</span> / 50</div>
-            <div style="margin-top:10px">Select Difficulty:</div>
+        <!-- START SCREEN -->
+        <div id="startScreen">
+            <div class="menu-title">PIXELIO</div>
+            <div class="menu-buttons">
+                <button class="menu-btn" onclick="showDifficultySelect()">NEW GAME</button>
+                <button class="menu-btn" onclick="continueGame()">RECENT LEVEL</button>
+                <button class="menu-btn" onclick="showLevelSelect()">LEVEL SELECT</button>
+            </div>
         </div>
-        <div class="difficulty-selector">
-            <button class="difficulty-btn easy-btn" onclick="startGame('easy')">EASY</button>
-            <button class="difficulty-btn moderate-btn" onclick="startGame('moderate')">MODERATE</button>
-            <button class="difficulty-btn hard-btn" onclick="startGame('hard')">HARD</button>
+
+        <!-- DIFFICULTY SCREEN -->
+        <div id="difficultyScreen" style="display:none; text-align:center;">
+            <div class="menu-subtitle">SELECT DIFFICULTY</div>
+            <div class="difficulty-selector">
+                <button class="difficulty-btn easy-btn" onclick="startGame('easy')">EASY</button>
+                <button class="difficulty-btn moderate-btn" onclick="startGame('moderate')">MODERATE</button>
+                <button class="difficulty-btn hard-btn" onclick="startGame('hard')">HARD</button>
+            </div>
+            <button class="menu-btn" style="width:200px; font-size:14px;" onclick="showStartScreen()">BACK</button>
+        </div>
+
+        <!-- LEVEL SELECT SCREEN -->
+        <div id="levelSelectScreen" style="display:none; text-align: center;">
+            <div class="menu-subtitle">SELECT LEVEL</div>
+            <div class="level-grid" id="levelGrid"></div>
+            <button class="menu-btn" style="width:200px; font-size:14px;" onclick="showStartScreen()">BACK</button>
         </div>
     </div>
 
@@ -387,7 +471,7 @@
         🪙 <span id="coinDisplay">0</span><br>
         LEFT: <span id="coinsLeft">0</span><br>
         SCORE: <span id="scoreDisplay">0</span><br>
-        ENEMIES: <span id="enemyCount">0</span>
+        ENEMIES LEFT: <span id="enemyCount">0</span>
     </div>
 
     <div class="instructions">
@@ -398,7 +482,7 @@
             <li>B/X SWORD⚔</li>
             <li>C/SHIFT DASH</li>
         </ul>
-        <div class="objective">► COLLECT COINS!<br>► REACH THE FLAG!</div>
+        <div class="objective">► COLLECT COINS!<br>► KILL ENEMIES!<br>► REACH THE FLAG!</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -435,7 +519,47 @@
     </div>
 
     <script>
-        let currentLevel = 1, maxUnlockedLevel = 1, difficulty = 'easy', totalScore = 0;
+        let currentLevel = 1, difficulty = 'easy', totalScore = 0;
+        let maxUnlockedLevel = parseInt(localStorage.getItem('pixelio_maxLevel') || '1');
+
+        function saveProgress() {
+            if (currentLevel > maxUnlockedLevel) {
+                maxUnlockedLevel = currentLevel;
+                localStorage.setItem('pixelio_maxLevel', maxUnlockedLevel);
+            }
+        }
+
+        function showStartScreen() {
+            document.getElementById('startScreen').style.display = 'block';
+            document.getElementById('difficultyScreen').style.display = 'none';
+            document.getElementById('levelSelectScreen').style.display = 'none';
+        }
+
+        function showDifficultySelect() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('difficultyScreen').style.display = 'block';
+        }
+
+        function continueGame() {
+            currentLevel = maxUnlockedLevel;
+            showDifficultySelect();
+        }
+
+        function showLevelSelect() {
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('levelSelectScreen').style.display = 'block';
+            const grid = document.getElementById('levelGrid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 50; i++) {
+                const btn = document.createElement('button');
+                btn.className = `level-select-btn ${i > maxUnlockedLevel ? 'locked' : ''}`;
+                btn.textContent = i;
+                if (i <= maxUnlockedLevel) {
+                    btn.onclick = () => { currentLevel = i; showDifficultySelect(); };
+                }
+                grid.appendChild(btn);
+            }
+        }
         const DIFFICULTY_SETTINGS = { easy: { enemySpeedMultiplier: 1, enemyDamageMultiplier: 1, enemyCountMultiplier: 1, playerDamageMultiplier: 1.5, name: 'EASY' }, moderate: { enemySpeedMultiplier: 1.3, enemyDamageMultiplier: 1.5, enemyCountMultiplier: 1.5, playerDamageMultiplier: 1, name: 'MODERATE' }, hard: { enemySpeedMultiplier: 1.8, enemyDamageMultiplier: 2, enemyCountMultiplier: 2, playerDamageMultiplier: 0.8, name: 'HARD' } };
         let audioCtx = null;
         function playSound(type) {
@@ -488,7 +612,7 @@
         }
         function generateLevel(levelNum, diff) {
             const settings = DIFFICULTY_SETTINGS[diff];
-            const baseEnemyCount = Math.min(3 + Math.floor(levelNum / 5), 15);
+            const baseEnemyCount = Math.min(8 + Math.floor(levelNum / 2), 30);
             const enemyCount = Math.floor(baseEnemyCount * settings.enemyCountMultiplier);
             const isBossLevel = levelNum % 10 === 0;
             const themes = ['NORMAL', 'UNDERGROUND', 'SKY', 'CASTLE'];
@@ -502,39 +626,68 @@
                 enemySpeed: (2 + levelNum * 0.1) * settings.enemySpeedMultiplier,
                 enemyDamage: (10 + levelNum) * settings.enemyDamageMultiplier,
                 enemyHP: (30 + levelNum * 2) * (isBossLevel ? 2 : 1),
-                levelWidth: 3000 + (levelNum * 100),
+                levelWidth: 6000 + (levelNum * 200),
                 playerDamage: 25 * settings.playerDamageMultiplier
             }
         }
         const canvas = document.getElementById('gameCanvas'), ctx = canvas.getContext('2d'); canvas.width = window.innerWidth; canvas.height = window.innerHeight;
         const Engine = Matter.Engine, World = Matter.World, Bodies = Matter.Bodies, Body = Matter.Body;
         let engine, world, player, enemies, flag, floor, platformBodies = [];
-        let attackHitbox = null, particles = [], cameraX = 0, levelConfig = null, gameRunning = false, clouds = [], mountains = [], pipes = [], brickStairs = [], bushes = [], floatingPlatforms = [], coins = [], questionBlocks = [], movingPlatforms = [], mushrooms = [];
-        const PLAYER_SPEED = 8, JUMP_FORCE = 15, DODGE_IMPULSE = 18, DODGE_DURATION = 300, ATTACK_DURATION = 150, AGGRO_DISTANCE = 300, ATTACK_DISTANCE = 50, HIT_STOP_DURATION = 50, GROUND_Y = canvas.height - 250;
+        let attackHitbox = null, particles = [], cameraX = 0, levelConfig = null, gameRunning = false, clouds = [], mountains = [], pipes = [], brickStairs = [], bushes = [], floatingPlatforms = [], coins = [], questionBlocks = [], movingPlatforms = [], mushrooms = [], buildings = [], walls = [];
+        const PLAYER_SPEED = 8, JUMP_FORCE = 20, DODGE_IMPULSE = 18, DODGE_DURATION = 300, ATTACK_DURATION = 150, AGGRO_DISTANCE = 300, ATTACK_DISTANCE = 50, HIT_STOP_DURATION = 50, GROUND_Y = canvas.height - 250;
         const CATEGORY = { PLAYER: 0x0001, PLAYER_ATTACK: 0x0002, ENEMY: 0x0004, ENVIRONMENT: 0x0008 };
-        let gameState = { isGameOver: false, isVictory: false, hitStopEndTime: 0, inputState: { left: false, right: false, up: false, attack: false, roll: false, attackHandled: false, rollHandled: false, jumpHandled: false } };
+        let gameState = { isGameOver: false, isVictory: false, hitStopEndTime: 0, isNight: false, inputState: { left: false, right: false, up: false, attack: false, roll: false, attackHandled: false, rollHandled: false, jumpHandled: false } };
         const playerSize = 45;
         function generateClouds() { clouds = []; for (let i = 0; i < 8; i++)clouds.push({ x: Math.random() * levelConfig.levelWidth, y: 100 + Math.random() * 200, width: 80 + Math.random() * 40, speed: 0.2 + Math.random() * 0.3 }) }
         function generateMountains() { mountains = []; for (let i = 0; i < 6; i++)mountains.push({ x: (levelConfig.levelWidth / 6) * i, y: GROUND_Y - 50, height: 150 + Math.random() * 100, width: 200 + Math.random() * 100 }) }
-        function generatePipes() { pipes = []; const pipeCount = 3 + Math.floor(levelConfig.levelNum / 5); for (let i = 0; i < Math.min(pipeCount, 8); i++)pipes.push({ x: 500 + (i * 400), y: GROUND_Y - 50, height: 80 + (Math.random() > 0.5 ? 40 : 0) }) }
-        function generateBrickStairs() { brickStairs = []; const stairCount = 2 + Math.floor(levelConfig.levelNum / 10); for (let i = 0; i < Math.min(stairCount, 4); i++) { const steps = 3 + Math.floor(Math.random() * 3); brickStairs.push({ x: 800 + (i * 700), y: GROUND_Y - 50, steps: steps }) } }
+        function generatePipes() { pipes = []; const pipeCount = Math.floor(levelConfig.levelWidth / 700); for (let i = 0; i < pipeCount; i++) { const isTall = Math.random() > 0.6; pipes.push({ x: 500 + (i * (600 + Math.random() * 200)), y: GROUND_Y - 50, height: isTall ? 180 + Math.random() * 100 : 80 + (Math.random() > 0.5 ? 40 : 0) }) } }
+        function generateBrickStairs() { brickStairs = []; const stairCount = Math.floor(levelConfig.levelWidth / 1500); for (let i = 0; i < stairCount; i++) { const steps = 3 + Math.floor(Math.random() * 4); brickStairs.push({ x: 800 + (i * 1500) + Math.random() * 500, y: GROUND_Y - 50, steps: steps }) } }
         function generateBushes() { bushes = []; for (let i = 0; i < 10; i++)bushes.push({ x: Math.random() * levelConfig.levelWidth, y: GROUND_Y - 50, width: 40 + Math.random() * 20 }) }
         function generateCoins() { coins = []; const coinCount = 10 + Math.floor(levelConfig.levelNum / 2); for (let i = 0; i < Math.min(coinCount, 25); i++) { const onPlatform = Math.random() > 0.3; if (onPlatform && floatingPlatforms.length > 0) { const plat = floatingPlatforms[Math.floor(Math.random() * floatingPlatforms.length)]; coins.push({ x: plat.x + Math.random() * (plat.width * 30), y: plat.y - 40, collected: false, animFrame: 0 }) } else { coins.push({ x: 200 + Math.random() * (levelConfig.levelWidth - 400), y: GROUND_Y - 100 - Math.random() * 200, collected: false, animFrame: 0 }) } } }
-        function generateQuestionBlocks() { questionBlocks = []; const blockCount = 3 + Math.floor(levelConfig.levelNum / 5); for (let i = 0; i < Math.min(blockCount, 8); i++) { if (floatingPlatforms.length > 0) { const plat = floatingPlatforms[Math.floor(Math.random() * floatingPlatforms.length)]; questionBlocks.push({ x: plat.x + 15, y: plat.y - 60, hit: false, coins: 3, bumping: false, bumpTime: 0, isMushroom: i === 0 }) } } }
-        function generateMovingPlatforms() { movingPlatforms = []; const count = 2 + Math.floor(levelConfig.levelNum / 8); for (let i = 0; i < Math.min(count, 5); i++) { const startX = 600 + (i * 800); const y = GROUND_Y - 180 - (Math.floor(Math.random() * 2) * 60); movingPlatforms.push({ x: startX, y: y, width: 3, startX: startX, endX: startX + 150, direction: 1, speed: 1.5, bodies: [] }) } }
-        function generateFloatingPlatforms() { floatingPlatforms = []; const platformCount = 5 + Math.floor(levelConfig.levelNum / 3); for (let i = 0; i < Math.min(platformCount, 15); i++) { const x = 300 + (i * 350) + (Math.random() * 100); const heightLevel = Math.floor(Math.random() * 3); const y = GROUND_Y - 150 - (heightLevel * 80); const width = 3 + Math.floor(Math.random() * 3); const isCloud = Math.random() > 0.7; floatingPlatforms.push({ x: x, y: y, width: width, isCloud: isCloud }) } }
-        function createParticles(x, y, type, count = 5) { for (let i = 0; i < count; i++)particles.push({ x, y, vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4 - 2, life: 30 + Math.random() * 20, maxLife: 50, type, size: 4 + Math.random() * 4 }) }
+        function generateQuestionBlocks() { questionBlocks = []; const blockCount = 5 + Math.floor(levelConfig.levelNum / 3); for (let i = 0; i < Math.min(blockCount, 12); i++) { if (floatingPlatforms.length > 0) { const plat = floatingPlatforms[Math.floor(Math.random() * floatingPlatforms.length)]; const isMushroom = i === 0; const isSword = !isMushroom && i === 1 && Math.random() < 0.7; const isTrap = !isMushroom && !isSword && levelConfig.levelNum > 5 && Math.random() < 0.3; questionBlocks.push({ x: plat.x + 15, y: plat.y - 60, hit: false, coins: 3, bumping: false, bumpTime: 0, isMushroom: isMushroom, isSword: isSword, isTrap: isTrap }) } } }
+        function generateMovingPlatforms() { movingPlatforms = []; const count = Math.floor(levelConfig.levelWidth / 1500); for (let i = 0; i < count; i++) { const startX = 800 + (i * 1200) + Math.random() * 400; const y = GROUND_Y - 180 - (Math.floor(Math.random() * 3) * 70); movingPlatforms.push({ x: startX, y: y, width: 3, startX: startX, endX: startX + 250, direction: 1, speed: 2, bodies: [] }) } }
+        function generateBuildings() { buildings = []; const count = Math.floor(levelConfig.levelWidth / 700); for (let i = 0; i < count; i++) { const x = 600 + (i * 900) + Math.random() * 300; const width = 180 + Math.random() * 120; const height = 250 + Math.random() * 300; const colorVar = Math.floor(Math.random() * 3); buildings.push({ x, y: GROUND_Y - height / 2, width, height, colorVar }) } }
+        function generateWalls() { walls = []; const count = Math.floor(levelConfig.levelWidth / 600); for (let i = 0; i < count; i++) { const x = 400 + (i * 600) + Math.random() * 200; const height = 150 + Math.random() * 100; walls.push({ x, y: GROUND_Y - height / 2, width: 40, height }) } }
+        function generateUpperClouds() { const count = Math.floor(levelConfig.levelWidth / 1000); for (let i = 0; i < count; i++) { const startX = 500 + (i * 1000); const y = GROUND_Y - 450 - (Math.random() * 150); movingPlatforms.push({ x: startX, y: y, width: 4 + Math.floor(Math.random() * 2), startX: startX, endX: startX + 300, direction: 1, speed: 1.5, bodies: [] }) } }
+        function generateFloatingPlatforms() { floatingPlatforms = []; const platformCount = Math.floor(levelConfig.levelWidth / 400); for (let i = 0; i < platformCount; i++) { const x = 300 + (i * 400) + (Math.random() * 150); const heightLevel = Math.floor(Math.random() * 4); const y = GROUND_Y - 150 - (heightLevel * 90); const width = 3 + Math.floor(Math.random() * 3); const isCloud = Math.random() > 0.7; floatingPlatforms.push({ x: x, y: y, width: width, isCloud: isCloud }) } }
+        function createParticles(x, y, type, count = 5) {
+            if (particles.length > 100) particles.splice(0, particles.length - 100); // Performance Cap
+            for (let i = 0; i < count; i++)particles.push({ x, y, vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4 - 2, life: 30 + Math.random() * 20, maxLife: 50, type, size: 4 + Math.random() * 4 })
+        }
         function updateParticles() { particles = particles.filter(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life--; return p.life > 0 }) }
         function drawParticles() { particles.forEach(p => { const alpha = p.life / p.maxLife; ctx.save(); ctx.globalAlpha = alpha; if (p.type === 'dust') ctx.fillStyle = '#8B7355'; else if (p.type === 'hit') ctx.fillStyle = '#FFD700'; else if (p.type === 'defeat') ctx.fillStyle = '#FF4444'; else if (p.type === 'coin') { ctx.fillStyle = '#FFD700'; ctx.shadowColor = '#FFD700'; ctx.shadowBlur = 10 } else if (p.type === 'slash') { ctx.fillStyle = '#CCCCCC'; ctx.shadowColor = '#FFFFFF'; ctx.shadowBlur = 5 } ctx.fillRect(p.x - cameraX - p.size / 2, p.y - p.size / 2, p.size, p.size); ctx.restore() }) }
-        function createGoomba(x, y, config, canRespawn = true) { const goomba = Bodies.rectangle(x, y, 35, 35, { label: 'goomba', friction: 0.3, frictionAir: 0.02, collisionFilter: { category: CATEGORY.ENEMY, mask: CATEGORY.ENVIRONMENT | CATEGORY.PLAYER_ATTACK | CATEGORY.PLAYER } }); goomba.gameData = { hp: config.enemyHP, maxHp: config.enemyHP, state: 'PATROL', patrolLeft: x - 150, patrolRight: x + 150, patrolDirection: 1, lastAttackTime: 0, attackCooldown: 800 - (config.levelNum * 10), animFrame: 0, animTimer: 0, speed: config.enemySpeed, damage: config.enemyDamage, isGrounded: false, canRespawn: canRespawn }; return goomba }
+        function createGoomba(x, y, config, canRespawn = true) { const goomba = Bodies.rectangle(x, y, 35, 35, { label: 'goomba', inertia: Infinity, chamfer: { radius: 10 }, friction: 0, frictionStatic: 0, frictionAir: 0.02, collisionFilter: { category: CATEGORY.ENEMY, mask: CATEGORY.ENVIRONMENT | CATEGORY.PLAYER_ATTACK | CATEGORY.PLAYER } }); goomba.gameData = { hp: config.enemyHP, maxHp: config.enemyHP, state: 'PATROL', patrolLeft: x - 150, patrolRight: x + 150, patrolDirection: 1, lastAttackTime: 0, attackCooldown: 800 - (config.levelNum * 10), animFrame: 0, animTimer: 0, speed: config.enemySpeed, damage: config.enemyDamage, isGrounded: false, canRespawn: canRespawn }; return goomba }
+        function createBigBoss(x, y, config) {
+            const boss = Bodies.rectangle(x, y, 80, 80, { label: 'big_boss', inertia: Infinity, chamfer: { radius: 20 }, friction: 0, frictionStatic: 0, frictionAir: 0.05, density: 0.05, collisionFilter: { category: CATEGORY.ENEMY, mask: CATEGORY.ENVIRONMENT | CATEGORY.PLAYER_ATTACK | CATEGORY.PLAYER } });
+            boss.gameData = { hp: config.enemyHP * 5, maxHp: config.enemyHP * 5, state: 'PATROL', patrolLeft: x - 300, patrolRight: x + 300, patrolDirection: 1, lastAttackTime: 0, attackCooldown: 1500, animFrame: 0, animTimer: 0, speed: config.enemySpeed * 0.5, damage: config.enemyDamage * 2, isGrounded: false, canRespawn: false };
+            return boss;
+        }
+        function createBlockNinja(x, y, config) {
+            const ninja = Bodies.rectangle(x, y, 35, 35, { label: 'block_ninja', inertia: Infinity, chamfer: { radius: 10 }, friction: 0, frictionStatic: 0, frictionAir: 0.02, collisionFilter: { category: CATEGORY.ENEMY, mask: CATEGORY.ENVIRONMENT | CATEGORY.PLAYER_ATTACK | CATEGORY.PLAYER } });
+            ninja.gameData = { hp: config.enemyHP * 1.5, maxHp: config.enemyHP * 1.5, state: 'AGGRO', patrolLeft: x - 200, patrolRight: x + 200, patrolDirection: 1, lastAttackTime: 0, attackCooldown: 600, animFrame: 0, animTimer: 0, speed: config.enemySpeed * 1.5, damage: config.enemyDamage * 1.2, isGrounded: false, canRespawn: false };
+            return ninja;
+        }
+        function createSkyNinja(x, y, config) {
+            const ninja = Bodies.rectangle(x, y, 35, 35, { label: 'sky_ninja', inertia: Infinity, chamfer: { radius: 10 }, friction: 0, frictionStatic: 0, frictionAir: 0.01, collisionFilter: { category: CATEGORY.ENEMY, mask: CATEGORY.ENVIRONMENT | CATEGORY.PLAYER_ATTACK | CATEGORY.PLAYER } });
+            ninja.gameData = { hp: config.enemyHP * 2, maxHp: config.enemyHP * 2, state: 'AGGRO', patrolLeft: x - 400, patrolRight: x + 400, patrolDirection: 1, lastAttackTime: 0, attackCooldown: 500, animFrame: 0, animTimer: 0, speed: config.enemySpeed * 1.8, damage: config.enemyDamage * 1.5, isGrounded: false, canRespawn: false };
+            return ninja;
+        }
         function initLevel(levelNum, diff) {
-            if (engine) { World.clear(engine.world); Engine.clear(engine) } engine = Engine.create(); engine.gravity.y = 1; world = engine.world; levelConfig = generateLevel(levelNum, diff); generateClouds(); generateMountains(); generatePipes(); generateBrickStairs(); generateBushes(); generateFloatingPlatforms(); generateMovingPlatforms(); generateCoins(); generateQuestionBlocks(); platformBodies = []; mushrooms = [];
-            floor = Bodies.rectangle(levelConfig.levelWidth / 2, GROUND_Y + 25, levelConfig.levelWidth, 50, { isStatic: true, label: 'floor', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+            if (engine) { World.clear(engine.world); Engine.clear(engine) } engine = Engine.create(); engine.gravity.y = 1; world = engine.world; levelConfig = generateLevel(levelNum, diff); generateClouds(); generateMountains(); generateBuildings(); generateWalls(); generatePipes(); generateBrickStairs(); generateBushes(); generateFloatingPlatforms(); generateMovingPlatforms(); generateUpperClouds(); generateCoins(); generateQuestionBlocks(); platformBodies = []; mushrooms = [];
+            floor = Bodies.rectangle(levelConfig.levelWidth / 2, GROUND_Y + 25, levelConfig.levelWidth, 50, { isStatic: true, label: 'floor', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
             platformBodies.push(floor);
             pipes.forEach(pipe => {
-                const pipeTop = Bodies.rectangle(pipe.x, pipe.y - pipe.height - 5, 50, 10, { isStatic: true, label: 'platform', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
-                const pipeBody = Bodies.rectangle(pipe.x, pipe.y - pipe.height / 2, 40, pipe.height, { isStatic: true, label: 'pipeBody', collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                const pipeTop = Bodies.rectangle(pipe.x, pipe.y - pipe.height - 5, 50, 10, { isStatic: true, label: 'platform', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                const pipeBody = Bodies.rectangle(pipe.x, pipe.y - pipe.height / 2, 40, pipe.height, { isStatic: true, label: 'pipeBody', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
                 platformBodies.push(pipeTop); World.add(world, pipeBody)
+            });
+            buildings.forEach(b => {
+                const body = Bodies.rectangle(b.x, b.y, b.width, b.height, { isStatic: true, label: 'platform', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                platformBodies.push(body); World.add(world, body);
+            });
+            walls.forEach(w => {
+                const body = Bodies.rectangle(w.x, w.y, w.width, w.height, { isStatic: true, label: 'platform', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                platformBodies.push(body); World.add(world, body);
             });
             brickStairs.forEach(stairs => {
                 const brickSize = 30;
@@ -542,7 +695,7 @@
                     for (let brick = 0; brick <= step; brick++) {
                         const brickX = stairs.x + (brick * brickSize) + brickSize / 2;
                         const brickY = stairs.y - (step * brickSize) - brickSize / 2;
-                        const brickBody = Bodies.rectangle(brickX, brickY, brickSize, brickSize, { isStatic: true, label: 'platform', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                        const brickBody = Bodies.rectangle(brickX, brickY, brickSize, brickSize, { isStatic: true, label: 'platform', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
                         platformBodies.push(brickBody)
                     }
                 }
@@ -552,11 +705,11 @@
                 if (!plat.isCloud) {
                     for (let i = 0; i < plat.width; i++) {
                         const brickX = plat.x + (i * brickSize);
-                        const platformBlock = Bodies.rectangle(brickX, plat.y, brickSize, brickSize, { isStatic: true, label: 'platform', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                        const platformBlock = Bodies.rectangle(brickX, plat.y, brickSize, brickSize, { isStatic: true, label: 'platform', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
                         platformBodies.push(platformBlock)
                     }
                 } else {
-                    const platformBlock = Bodies.rectangle(plat.x + (plat.width * 15), plat.y, plat.width * 30, 15, { isStatic: true, label: 'platform', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                    const platformBlock = Bodies.rectangle(plat.x + (plat.width * 15), plat.y, plat.width * 30, 15, { isStatic: true, label: 'platform', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
                     platformBodies.push(platformBlock)
                 }
             });
@@ -565,12 +718,12 @@
                 const brickSize = 30;
                 for (let i = 0; i < movPlat.width; i++) {
                     const brickX = movPlat.x + (i * brickSize);
-                    const platformBlock = Bodies.rectangle(brickX, movPlat.y, brickSize, brickSize, { isStatic: true, label: 'platform', friction: 0.8, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+                    const platformBlock = Bodies.rectangle(brickX, movPlat.y, brickSize, brickSize, { isStatic: true, label: 'platform', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
                     platformBodies.push(platformBlock); movPlat.bodies.push(platformBlock); World.add(world, platformBlock)
                 }
             });
-            player = Bodies.rectangle(100, GROUND_Y - playerSize / 2 - 100, playerSize, playerSize, { label: 'player', friction: 0.3, frictionAir: 0.02, inertia: Infinity, collisionFilter: { category: CATEGORY.PLAYER, mask: CATEGORY.ENVIRONMENT | CATEGORY.ENEMY } });
-            player.gameData = { hp: 100, maxHp: 100, isInvulnerable: false, facingRight: true, dodgeEndTime: 0, lastHitTime: null, animFrame: 0, animTimer: 0, state: 'idle', damage: levelConfig.playerDamage, isGrounded: false, canJump: false, coins: 0, hasSword: true, isBig: false };
+            player = Bodies.rectangle(100, GROUND_Y - playerSize / 2 - 100, playerSize, playerSize, { label: 'player', chamfer: { radius: 8 }, friction: 0, frictionStatic: 0, frictionAir: 0.02, inertia: Infinity, collisionFilter: { category: CATEGORY.PLAYER, mask: CATEGORY.ENVIRONMENT | CATEGORY.ENEMY } });
+            player.gameData = { hp: 100, maxHp: 100, isInvulnerable: false, facingRight: true, dodgeEndTime: 0, lastHitTime: null, animFrame: 0, animTimer: 0, state: 'idle', damage: levelConfig.playerDamage, isGrounded: false, canJump: false, coins: 0, hasSword: true, hasLegendarySword: false, isBig: false };
             World.add(world, [...platformBodies, player]);
             enemies = [];
             const spacing = levelConfig.levelWidth / (levelConfig.enemyCount + 1);
@@ -580,9 +733,74 @@
                 const enemy = createGoomba(x, spawnY, levelConfig);
                 enemies.push(enemy); World.add(world, enemy)
             }
+
+            // Spawn Block Ninjas on Brown Blocks (Stairs & Platforms)
+            brickStairs.forEach(stair => {
+                if (Math.random() < 0.4) {
+                    const topX = stair.x + (stair.steps * 15);
+                    const topY = stair.y - (stair.steps * 30) - 30;
+                    const ninja = createBlockNinja(topX, topY, levelConfig);
+                    enemies.push(ninja); World.add(world, ninja);
+                }
+            });
+            floatingPlatforms.forEach(plat => {
+                if (!plat.isCloud && Math.random() < 0.2) {
+                    const ninja = createBlockNinja(plat.x + (plat.width * 15), plat.y - 40, levelConfig);
+                    enemies.push(ninja); World.add(world, ninja);
+                }
+            });
+
+            // Spawn Sky Ninjas on Moving Platforms & Buildings
+            movingPlatforms.forEach(mp => {
+                if (Math.random() < 0.6) {
+                    const ninja = createSkyNinja(mp.x, mp.y - 100, levelConfig);
+                    enemies.push(ninja); World.add(world, ninja);
+                }
+            });
+            buildings.forEach(b => {
+                // Ninja on Roof
+                if (Math.random() < 0.7) {
+                    const ninja = createSkyNinja(b.x, b.y - b.height / 2 - 40, levelConfig);
+                    enemies.push(ninja); World.add(world, ninja);
+                }
+                // Ninja on middle ledge (if tall)
+                if (b.height > 350 && Math.random() < 0.5) {
+                    const ninja = createSkyNinja(b.x + (Math.random() > 0.5 ? 60 : -60), b.y - 40, levelConfig); // Mid-air hold? No, actually fall to ground if no ledge. Let's spawn on ground near building base instead.
+                    const groundNinja = createBlockNinja(b.x + (b.width / 2 + 50) * (Math.random() > 0.5 ? 1 : -1), GROUND_Y - 50, levelConfig);
+                    enemies.push(groundNinja); World.add(world, groundNinja);
+                }
+            });
+
+            // Spawn Big Boss (Randomly 1-2 per level if level > 2)
+            if (levelConfig.levelNum > 2) {
+                const bossCount = 1 + (Math.random() > 0.5 ? 1 : 0);
+                for (let k = 0; k < bossCount; k++) {
+                    const boss = createBigBoss(1500 + Math.random() * (levelConfig.levelWidth - 2000), GROUND_Y - 100, levelConfig);
+                    enemies.push(boss); World.add(world, boss);
+                }
+            }
             flag = Bodies.rectangle(levelConfig.levelWidth - 200, GROUND_Y - 60, 20, 120, { isStatic: true, isSensor: true, label: 'flag' });
             flag.gameData = { isReached: false }; World.add(world, flag);
-            gameState.isGameOver = false; gameState.isVictory = false; gameState.hitStopEndTime = 0; cameraX = 0; particles = []; attackHitbox = null; updateHearts(); updateEnemyCount(); updateUI()
+
+            // End Level Barrier
+            const endWall = Bodies.rectangle(levelConfig.levelWidth + 25, GROUND_Y - 1000, 50, 2000, { isStatic: true, label: 'endWall', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+            World.add(world, endWall);
+
+            // Spawn Hidden Enemies on Clouds (Level > 5)
+            // Spawn Hidden Enemies on Clouds (Randomly)
+            floatingPlatforms.forEach(plat => {
+                if (plat.isCloud && Math.random() < 0.5) {
+                    const enemy = createGoomba(plat.x + (plat.width * 15), plat.y - 50, levelConfig);
+                    enemies.push(enemy); World.add(world, enemy);
+                }
+            });
+
+            gameState.isGameOver = false; gameState.isVictory = false; gameState.hitStopEndTime = 0; gameState.isNight = false; cameraX = 0; particles = []; attackHitbox = null; updateHearts(); updateEnemyCount(); updateUI()
+        }
+        function toggleDayNight() {
+            gameState.isNight = !gameState.isNight;
+            showNotification(gameState.isNight ? 'NIGHT MODE ACTIVATED!' : 'DAWN HAS BROKEN!');
+            // enemies become stronger at night?
         }
         function updateHearts() { const container = document.getElementById('heartContainer'); const hearts = Math.ceil(player.gameData.hp / 20); container.innerHTML = ''; for (let i = 0; i < 5; i++) { const heart = document.createElement('span'); heart.className = i < hearts ? 'heart' : 'heart empty'; heart.textContent = '♥'; container.appendChild(heart) } }
         function updateEnemyCount() { document.getElementById('enemyCount').textContent = enemies.length }
@@ -597,15 +815,29 @@
             document.getElementById('coinsLeft').textContent = remainingCoins + remainingBlockCoins;
         }
         function startGame(diff) { difficulty = diff; document.getElementById('mainMenu').classList.add('hidden'); initLevel(currentLevel, difficulty); gameRunning = true; gameLoop() }
-        function nextLevel() { if (currentLevel < 50) { currentLevel++; if (currentLevel > maxUnlockedLevel) maxUnlockedLevel = currentLevel; document.getElementById('overlay').classList.remove('show'); initLevel(currentLevel, difficulty) } else { document.getElementById('overlayTitle').textContent = '🎉 GAME COMPLETE! 🎉'; document.getElementById('overlaySubtitle').textContent = `Final Score: ${totalScore}` } }
+        function nextLevel() { if (currentLevel < 50) { currentLevel++; saveProgress(); document.getElementById('overlay').classList.remove('show'); initLevel(currentLevel, difficulty) } else { document.getElementById('overlayTitle').textContent = '🎉 GAME COMPLETE! 🎉'; document.getElementById('overlaySubtitle').textContent = `Final Score: ${totalScore}` } }
         function restartLevel() { document.getElementById('overlay').classList.remove('show'); initLevel(currentLevel, difficulty) }
-        function backToMenu() { document.getElementById('overlay').classList.remove('show'); document.getElementById('mainMenu').classList.remove('hidden'); document.getElementById('menuLevel').textContent = currentLevel; gameRunning = false }
+        function backToMenu() { document.getElementById('overlay').classList.remove('show'); document.getElementById('mainMenu').classList.remove('hidden'); showStartScreen(); gameRunning = false }
         const inputState = gameState.inputState;
         document.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') { e.preventDefault(); inputState.left = true } if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') { e.preventDefault(); inputState.right = true } if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w' || e.key === ' ') { e.preventDefault(); inputState.up = true } if (e.key.toLowerCase() === 'x' || e.key.toLowerCase() === 'b') { e.preventDefault(); inputState.attack = true } if (e.key === 'Shift' || e.key.toLowerCase() === 'c') { e.preventDefault(); inputState.roll = true } });
         document.addEventListener('keyup', e => { if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') inputState.left = false; if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') inputState.right = false; if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w' || e.key.toLowerCase() === ' ') inputState.up = false; if (e.key.toLowerCase() === 'x' || e.key.toLowerCase() === 'b') inputState.attack = false; if (e.key === 'Shift' || e.key.toLowerCase() === 'c') inputState.roll = false });
         function setupButton(id, input) { const btn = document.getElementById(id); btn.addEventListener('touchstart', e => { e.preventDefault(); inputState[input] = true }); btn.addEventListener('touchend', e => { e.preventDefault(); inputState[input] = false }); btn.addEventListener('mousedown', () => inputState[input] = true); btn.addEventListener('mouseup', () => inputState[input] = false) }
         setupButton('leftBtn', 'left'); setupButton('upBtn', 'up'); setupButton('rightBtn', 'right'); setupButton('attackBtn', 'attack'); setupButton('rollBtn', 'roll');
-        function checkGrounded(body) { const checkDist = 3; const halfHeight = (body.bounds.max.y - body.bounds.min.y) / 2; const testPoint = { x: body.position.x, y: body.position.y + halfHeight + checkDist }; return platformBodies.some(platform => { const bounds = platform.bounds; return testPoint.x >= bounds.min.x && testPoint.x <= bounds.max.x && testPoint.y >= bounds.min.y && testPoint.y <= bounds.max.y + 5 }) }
+        function checkGrounded(body) {
+            const checkDist = 5;
+            const halfHeight = (body.bounds.max.y - body.bounds.min.y) / 2;
+            const halfWidth = (body.bounds.max.x - body.bounds.min.x) / 2;
+            // Check left, center, and right points at the bottom
+            const points = [
+                { x: body.position.x - halfWidth + 5, y: body.position.y + halfHeight + checkDist },
+                { x: body.position.x, y: body.position.y + halfHeight + checkDist },
+                { x: body.position.x + halfWidth - 5, y: body.position.y + halfHeight + checkDist }
+            ];
+            return platformBodies.some(platform => {
+                const bounds = platform.bounds;
+                return points.some(p => p.x >= bounds.min.x && p.x <= bounds.max.x && p.y >= bounds.min.y && p.y <= bounds.max.y + 5);
+            })
+        }
         function gameLoop() {
             if (!gameRunning) return;
             const currentTime = Date.now();
@@ -665,9 +897,19 @@
 
                 const dist = Math.abs(player.position.x - m.x) + Math.abs(player.position.y - m.y);
                 if (dist < 40) {
-                    player.gameData.isBig = true; player.gameData.hp = Math.min(player.gameData.hp + 50, 100);
-                    player.gameData.damage = levelConfig.playerDamage * 2;
-                    createParticles(m.x, m.y, 'coin', 15); playSound('victory');
+                    if (m.type === 'mushroom') {
+                        player.gameData.isBig = true; player.gameData.hp = Math.min(player.gameData.hp + 50, 100);
+                        player.gameData.damage = levelConfig.playerDamage * 2;
+                        createParticles(m.x, m.y, 'coin', 15); playSound('victory');
+                    } else if (m.type === 'sword') {
+                        player.gameData.hasLegendarySword = true;
+                        createParticles(m.x, m.y, 'slash', 20); playSound('victory');
+                        showNotification('LEGENDARY SWORD ACQUIRED!');
+                    } else if (m.type === 'heart') {
+                        player.gameData.hp = Math.min(player.gameData.hp + 50, 100);
+                        createParticles(m.x, m.y, 'coin', 10); playSound('coin');
+                        updateHearts();
+                    }
                     mushrooms.splice(idx, 1); updateHearts();
                 }
             });
@@ -678,9 +920,18 @@
                     const dist = Math.abs(player.position.x - block.x) + Math.abs(player.position.y - (block.y + 15));
                     if (dist < 35 && player.velocity.y < 0) {
                         block.bumping = true; block.bumpTime = currentTime;
-                        if (block.isMushroom) {
+                        if (block.isTrap) {
                             block.hit = true;
-                            mushrooms.push({ x: block.x + 15, y: block.y - 15, vx: 2 });
+                            const enemy = createGoomba(block.x + 15, block.y - 50, levelConfig);
+                            Body.setVelocity(enemy, { x: (Math.random() - 0.5) * 4, y: -8 });
+                            enemies.push(enemy); World.add(world, enemy);
+                            createParticles(block.x + 15, block.y, 'defeat', 8); playSound('defeat');
+                        } else if (block.isMushroom) {
+                            block.hit = true;
+                            mushrooms.push({ x: block.x + 15, y: block.y - 15, vx: 2, type: 'mushroom' });
+                        } else if (block.isSword) {
+                            block.hit = true;
+                            mushrooms.push({ x: block.x + 15, y: block.y - 15, vx: 2, type: 'sword' });
                         } else if (block.coins > 0) {
                             block.coins--; if (block.coins <= 0) block.hit = true;
                             coins.push({ x: block.x + 15, y: block.y - 30, collected: false, animFrame: 0 });
@@ -739,6 +990,11 @@
                 const dir = player.position.x > enemy.position.x ? 1 : -1;
                 const eD = enemy.gameData;
                 if (eD.isGrounded) {
+                    // Sky Ninja Jump Logic
+                    if (enemy.label === 'sky_ninja' && player.position.y < enemy.position.y - 50 && Math.abs(dist) < 300 && Math.random() < 0.03) {
+                        Body.setVelocity(enemy, { x: enemy.velocity.x, y: -20 });
+                        playSound('jump');
+                    }
                     if (dist < ATTACK_DISTANCE) {
                         eD.state = 'ATTACK';
                         if (currentTime - eD.lastAttackTime > eD.attackCooldown) { Body.setVelocity(enemy, { x: eD.speed * 3 * dir, y: enemy.velocity.y }); eD.lastAttackTime = currentTime }
@@ -778,12 +1034,36 @@
                 enemies.forEach((enemy, idx) => {
                     const hit = Matter.Query.collides(attackHitbox, [enemy]);
                     if (hit.length > 0) {
-                        enemy.gameData.hp -= player.gameData.damage;
-                        attackHitbox.gameData.hasHit = true;
-                        gameState.hitStopEndTime = currentTime + HIT_STOP_DURATION;
-                        createParticles(enemy.position.x, enemy.position.y, 'hit', 15);
-                        if (enemy.gameData.hp <= 0) {
-                            toRemove.push(enemy);
+                        let damage = player.gameData.damage;
+                        if (enemy.label === 'big_boss') {
+                            if (!player.gameData.hasLegendarySword) {
+                                damage = 0;
+                                createParticles(enemy.position.x, enemy.position.y, 'dust', 5);
+                                playSound('hit'); // Bonk sound
+                                showNotification('NEED LEGENDARY SWORD!');
+                            } else {
+                                damage *= 2; // Bonus damage to boss with sword
+                            }
+                        }
+
+                        if (damage > 0) {
+                            enemy.gameData.hp -= damage;
+                            attackHitbox.gameData.hasHit = true;
+                            gameState.hitStopEndTime = currentTime + HIT_STOP_DURATION;
+                            createParticles(enemy.position.x, enemy.position.y, 'hit', 15);
+                            if (enemy.gameData.hp <= 0) {
+                                if (enemy.label === 'sky_ninja') {
+                                    const roll = Math.random();
+                                    if (roll < 0.3) {
+                                        mushrooms.push({ x: enemy.position.x, y: enemy.position.y, vx: 0, type: 'heart' });
+                                    } else if (roll < 0.5) {
+                                        mushrooms.push({ x: enemy.position.x, y: enemy.position.y, vx: 0, type: 'sword' });
+                                    } else if (roll < 0.7) {
+                                        toggleDayNight();
+                                    }
+                                }
+                                toRemove.push(enemy);
+                            }
                         }
                     }
                 });
@@ -809,16 +1089,20 @@
             if (Matter.Query.collides(player, [flag]).length > 0 && !flag.gameData.isReached) {
                 const remainingCoins = coins.filter(c => !c.collected).length;
                 const remainingBlockCoins = questionBlocks.reduce((acc, b) => acc + (b.hit ? 0 : b.coins), 0);
-                const totalLeft = remainingCoins + remainingBlockCoins;
+                const totalCoinsLeft = remainingCoins + remainingBlockCoins;
+                const enemiesLeft = enemies.length;
 
-                if (totalLeft > 0) {
+                if (totalCoinsLeft > 0 || enemiesLeft > 0) {
                     if (currentTime - (flag.gameData.lastWarnTime || 0) > 2000) {
-                        showNotification(`COLLECT ALL COINS! (${totalLeft} LEFT)`);
+                        const msg = [];
+                        if (totalCoinsLeft > 0) msg.push(`${totalCoinsLeft} COINS`);
+                        if (enemiesLeft > 0) msg.push(`${enemiesLeft} ENEMIES`);
+                        showNotification(`NEED: ${msg.join(' & ')}`);
                         flag.gameData.lastWarnTime = currentTime;
                     }
                 } else {
                     flag.gameData.isReached = true; gameState.isVictory = true; playSound('victory');
-                    let bonus = enemies.length === 0 ? 1000 : 0;
+                    let bonus = 1000;
                     totalScore += (currentLevel * 500) + bonus;
                     totalScore += (player.gameData.coins * 10);
                     document.getElementById('overlayTitle').textContent = levelConfig.isBossLevel ? '👑 BOSS CLEARED!' : 'WORLD CLEAR!';
@@ -845,7 +1129,11 @@
             const viewLeft = cameraX - 100, viewRight = cameraX + canvas.width + 100;
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
             if (theme === 'NORMAL') {
-                gradient.addColorStop(0, '#5C94FC'); gradient.addColorStop(1, '#8CB4FC');
+                if (gameState.isNight) {
+                    gradient.addColorStop(0, '#0a0a2a'); gradient.addColorStop(1, '#202040');
+                } else {
+                    gradient.addColorStop(0, '#5C94FC'); gradient.addColorStop(1, '#8CB4FC');
+                }
             } else if (theme === 'UNDERGROUND') {
                 gradient.addColorStop(0, '#000000'); gradient.addColorStop(1, '#202020');
             } else if (theme === 'SKY') {
@@ -907,12 +1195,32 @@
             mushrooms.forEach(m => {
                 if (m.x < viewLeft || m.x > viewRight) return;
                 const x = m.x - cameraX, y = m.y;
-                ctx.fillStyle = '#FFE4C4'; ctx.beginPath(); ctx.ellipse(x, y + 5, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#FF4444'; ctx.beginPath(); ctx.arc(x, y - 5, 12, Math.PI, 0); ctx.fill();
-                ctx.fillStyle = '#FFFFFF';
-                ctx.beginPath(); ctx.arc(x, y - 10, 3, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(x - 6, y - 6, 2, 0, Math.PI * 2); ctx.fill();
-                ctx.beginPath(); ctx.arc(x + 6, y - 6, 2, 0, Math.PI * 2); ctx.fill();
+                if (m.type === 'mushroom') {
+                    ctx.fillStyle = '#FFE4C4'; ctx.beginPath(); ctx.ellipse(x, y + 5, 8, 10, 0, 0, Math.PI * 2); ctx.fill();
+                    ctx.fillStyle = '#FF4444'; ctx.beginPath(); ctx.arc(x, y - 5, 12, Math.PI, 0); ctx.fill();
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.beginPath(); ctx.arc(x, y - 10, 3, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(x - 6, y - 6, 2, 0, Math.PI * 2); ctx.fill();
+                    ctx.beginPath(); ctx.arc(x + 6, y - 6, 2, 0, Math.PI * 2); ctx.fill();
+                } else if (m.type === 'sword') {
+                    ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 4);
+                    ctx.fillStyle = '#C0C0C0'; ctx.fillRect(-4, -20, 8, 30);
+                    ctx.fillStyle = '#FFD700'; ctx.fillRect(-5, 15, 12, 4);
+                    ctx.fillStyle = '#8B4513'; ctx.fillRect(-3, 14, 6, 10);
+                    ctx.restore();
+                    // Glow effect
+                    ctx.shadowColor = '#00FFFF'; ctx.shadowBlur = 10; ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 1; ctx.strokeRect(x - 10, y - 10, 20, 20); ctx.shadowBlur = 0;
+                } else if (m.type === 'heart') {
+                    ctx.fillStyle = '#FF0000';
+                    ctx.beginPath(); ctx.moveTo(x, y + 5);
+                    ctx.bezierCurveTo(x, y, x - 10, y - 10, x - 10, y - 5);
+                    ctx.bezierCurveTo(x - 10, y + 5, x, y + 15, x, y + 15);
+                    ctx.bezierCurveTo(x, y + 15, x + 10, y + 5, x + 10, y - 5);
+                    ctx.bezierCurveTo(x + 10, y - 10, x, y, x, y + 5);
+                    ctx.fill();
+                    // Floating anim
+                    m.y += Math.sin(Date.now() / 200) * 0.5;
+                }
             });
 
             questionBlocks.forEach(block => {
@@ -975,6 +1283,70 @@
                 }
             });
 
+            // Draw Buildings (Improved UI)
+            buildings.forEach(b => {
+                if (b.x + b.width / 2 < viewLeft || b.x - b.width / 2 > viewRight) return;
+                const x = b.x - cameraX - b.width / 2, y = b.y - b.height / 2;
+
+                // Dynamic Building Colors
+                let mainColor = '#C0392B'; let darkColor = '#922B21';
+                if (b.colorVar === 1) { mainColor = '#2980B9'; darkColor = '#1F618D'; } // Blue
+                if (b.colorVar === 2) { mainColor = '#7D3C98'; darkColor = '#5B2C6F'; } // Purple
+
+                // Main Body
+                ctx.fillStyle = mainColor;
+                ctx.fillRect(x, y, b.width, b.height);
+                // Side shading for depth
+                ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x + b.width - 15, y, 15, b.height);
+
+                // Roof Trim
+                ctx.fillStyle = '#34495E'; ctx.fillRect(x - 5, y - 10, b.width + 10, 10);
+
+                // Roof Type
+                if (b.roofType === 'slanted') {
+                    ctx.fillStyle = '#8B4513'; // Brown roof
+                    ctx.beginPath();
+                    ctx.moveTo(x - 10, y - 10);
+                    ctx.lineTo(x + b.width / 2, y - b.height / 4 - 10); // Peak
+                    ctx.lineTo(x + b.width + 10, y - 10);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = '#5C3317'; ctx.lineWidth = 3; ctx.stroke();
+                }
+
+                // Entrance Door
+                const doorW = 40, doorH = 60;
+                ctx.fillStyle = '#2C3E50'; ctx.fillRect(x + b.width / 2 - doorW / 2, y + b.height - doorH, doorW, doorH);
+
+                // Windows
+                ctx.fillStyle = gameState.isNight ? '#F1C40F' : '#AED6F1'; // Lit yellow at night, blueish reflect at day
+                const cols = Math.floor((b.width - 20) / 40);
+                const rows = Math.floor((b.height - 80) / 60);
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        // Random unlit windows
+                        if (Math.random() > 0.8) ctx.fillStyle = '#1A252F';
+                        else ctx.fillStyle = gameState.isNight ? '#F1C40F' : '#AED6F1';
+
+                        ctx.fillRect(x + 15 + (c * 40), y + 15 + (r * 60), 25, 40);
+                        // Window sill
+                        ctx.fillStyle = darkColor; ctx.fillRect(x + 13 + (c * 40), y + 55 + (r * 60), 29, 5);
+                    }
+                }
+            });
+
+            // Draw Walls
+            walls.forEach(w => {
+                if (w.x + w.width / 2 < viewLeft || w.x - w.width / 2 > viewRight) return;
+                const x = w.x - cameraX - w.width / 2, y = w.y - w.height / 2;
+                ctx.fillStyle = '#7F8C8D'; // Grey Stone
+                ctx.fillRect(x, y, w.width, w.height);
+                ctx.strokeStyle = '#2C3E50'; ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, w.width, w.height);
+                // Texture lines
+                ctx.beginPath(); ctx.moveTo(x, y + w.height / 2); ctx.lineTo(x + w.width, y + w.height / 2); ctx.stroke();
+            });
+
             // Entities Culling and Optimized Drawing
             const entitiesToDraw = [];
             if (floor) entitiesToDraw.push(floor);
@@ -1002,8 +1374,15 @@
                     if (pData.hasSword && pData.state !== 'roll') {
                         const swordAngle = pData.state === 'attack' ? -0.5 : 0.3;
                         ctx.save(); ctx.translate(18, 0); ctx.rotate(swordAngle);
-                        ctx.fillStyle = '#C0C0C0'; ctx.fillRect(-2, -15, 4, 25);
-                        ctx.fillStyle = '#FFD700'; ctx.fillRect(-3, -16, 6, 4);
+                        if (pData.hasLegendarySword) {
+                            ctx.fillStyle = '#E0FFFF'; ctx.shadowColor = '#00FFFF'; ctx.shadowBlur = 15;
+                            ctx.fillRect(-3, -25, 6, 40); // Big blade
+                            ctx.fillStyle = '#FFD700'; ctx.fillRect(-5, 15, 10, 5); // Guard
+                            ctx.shadowBlur = 0;
+                        } else {
+                            ctx.fillStyle = '#C0C0C0'; ctx.fillRect(-2, -15, 4, 25);
+                            ctx.fillStyle = '#FFD700'; ctx.fillRect(-3, -16, 6, 4);
+                        }
                         ctx.restore();
                     }
                 } else if (body.label === 'goomba') {
@@ -1014,6 +1393,58 @@
                     ctx.fillStyle = '#000'; ctx.fillRect(-8, -6, 4, 4); ctx.fillRect(4, -6, 4, 4);
                     ctx.fillStyle = '#8B4513'; const footOffset = Math.sin(eData.animFrame) * 3;
                     ctx.fillRect(-12, 14, 8, 6); ctx.fillRect(4, 14 + footOffset, 8, 6);
+                } else if (body.label === 'big_boss') {
+                    const eData = body.gameData;
+                    ctx.scale(1.5, 1.5);
+                    ctx.fillStyle = '#222'; // Dark body
+                    ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                    // Angry Eyes
+                    ctx.fillStyle = '#FF0000';
+                    ctx.beginPath(); ctx.moveTo(-10, -5); ctx.lineTo(-5, 0); ctx.lineTo(-15, 0); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(10, -5); ctx.lineTo(15, 0); ctx.lineTo(5, 0); ctx.fill();
+                    // Spikes
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (Date.now() / 500) + (i * Math.PI / 4);
+                        ctx.beginPath(); ctx.moveTo(Math.cos(angle) * 25, Math.sin(angle) * 25);
+                        ctx.lineTo(Math.cos(angle) * 35, Math.sin(angle) * 35);
+                        ctx.strokeStyle = '#FF0000'; ctx.lineWidth = 3; ctx.stroke();
+                    }
+                } else if (body.label === 'block_ninja') {
+                    // Ninja Design
+                    const eData = body.gameData;
+                    if (levelConfig.isBossLevel) ctx.scale(1.2, 1.2);
+                    // Body
+                    ctx.fillStyle = '#1A1A1A';
+                    ctx.fillRect(-15, -15, 30, 30);
+                    // Headband
+                    ctx.fillStyle = '#FF0000';
+                    ctx.fillRect(-15, -12, 30, 6);
+                    ctx.fillRect(15, -12, 8, 4); // Knot
+                    // Eyes
+                    ctx.fillStyle = '#FFF';
+                    ctx.fillRect(-10, -5, 8, 4); ctx.fillRect(2, -5, 8, 4);
+                    // Weapon (Katana)
+                    ctx.save(); ctx.translate(15, 5); ctx.rotate(-0.5 + Math.sin(Date.now() / 100));
+                    ctx.fillStyle = '#CCC'; ctx.fillRect(0, -2, 25, 4);
+                    ctx.restore();
+                } else if (body.label === 'sky_ninja') {
+                    // Sky Ninja Design (White/Blue)
+                    const eData = body.gameData;
+                    if (levelConfig.isBossLevel) ctx.scale(1.2, 1.2);
+                    // Body
+                    ctx.fillStyle = '#DDDDDD';
+                    ctx.fillRect(-15, -15, 30, 30);
+                    // Headband
+                    ctx.fillStyle = '#0000FF';
+                    ctx.fillRect(-15, -12, 30, 6);
+                    ctx.fillRect(15, -12, 8, 4); // Knot
+                    // Eyes
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(-10, -5, 8, 4); ctx.fillRect(2, -5, 8, 4);
+                    // Weapon (Katana)
+                    ctx.save(); ctx.translate(15, 5); ctx.rotate(-0.5 + Math.sin(Date.now() / 50));
+                    ctx.fillStyle = '#00FFFF'; ctx.fillRect(0, -2, 25, 4);
+                    ctx.restore();
                 } else if (body.label === 'flag') {
                     const reached = flag.gameData.isReached;
                     ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -60); ctx.lineTo(0, 60); ctx.stroke();
