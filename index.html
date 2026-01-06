@@ -3,7 +3,11 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>🍄 PIXELIO - 50 Levels</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <style>
@@ -68,31 +72,76 @@
             border: 4px solid;
             border-radius: 8px;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3)
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .difficulty-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .difficulty-btn:hover::after {
+            left: 100%;
         }
 
         .difficulty-btn:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 0 rgba(0, 0, 0, 0.3)
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 10px 0 rgba(0, 0, 0, 0.3);
         }
 
         .easy-btn {
-            background: #44FF44;
+            background: linear-gradient(145deg, #44FF44, #33DD33);
             color: #005500;
-            border-color: #00CC00
+            border-color: #00CC00;
+            box-shadow: 0 6px 0 #00AA00, 0 0 20px rgba(68, 255, 68, 0.3);
+        }
+
+        .easy-btn:hover {
+            box-shadow: 0 10px 0 #00AA00, 0 0 30px rgba(68, 255, 68, 0.5);
         }
 
         .moderate-btn {
-            background: #FFD700;
+            background: linear-gradient(145deg, #FFD700, #FFC700);
             color: #8B4500;
-            border-color: #CC9900
+            border-color: #CC9900;
+            box-shadow: 0 6px 0 #AA7700, 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+
+        .moderate-btn:hover {
+            box-shadow: 0 10px 0 #AA7700, 0 0 30px rgba(255, 215, 0, 0.5);
         }
 
         .hard-btn {
-            background: #FF4444;
+            background: linear-gradient(145deg, #FF4444, #DD3333);
             color: white;
-            border-color: #CC0000
+            border-color: #CC0000;
+            box-shadow: 0 6px 0 #AA0000, 0 0 20px rgba(255, 68, 68, 0.3);
+            animation: pulse-hard 2s infinite;
+        }
+
+        .hard-btn:hover {
+            box-shadow: 0 10px 0 #AA0000, 0 0 30px rgba(255, 68, 68, 0.5);
+        }
+
+        @keyframes pulse-hard {
+
+            0%,
+            100% {
+                box-shadow: 0 6px 0 #AA0000, 0 0 20px rgba(255, 68, 68, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 6px 0 #AA0000, 0 0 30px rgba(255, 68, 68, 0.5);
+            }
         }
 
         .menu-subtitle {
@@ -120,13 +169,33 @@
             cursor: pointer;
             width: 300px;
             text-align: center;
-            transition: all 0.2s;
-            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 0 #2A6FAA, 0 0 20px rgba(74, 143, 210, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .menu-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
         }
 
         .menu-btn:hover {
             transform: translateY(-4px);
-            box-shadow: 0 10px 0 rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 0 #2A6FAA, 0 0 30px rgba(74, 143, 210, 0.5);
+        }
+
+        .menu-btn:active::before {
+            width: 300px;
+            height: 300px;
         }
 
         .level-grid {
@@ -174,13 +243,28 @@
             top: 20px;
             left: 20px;
             background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             color: #FFF;
             padding: 12px 20px;
-            border-radius: 4px;
+            border-radius: 12px;
             font-size: 11px;
-            border: 3px solid #FFF;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-            z-index: 10
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3), 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            animation: slideInLeft 0.5s ease-out;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                transform: translateX(-100px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
 
         #hud .hearts {
@@ -205,13 +289,28 @@
             top: 20px;
             right: 20px;
             background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             color: #FFF;
             padding: 12px 20px;
-            border-radius: 4px;
+            border-radius: 12px;
             font-size: 11px;
-            border: 3px solid #FFF;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-            z-index: 10
+            border: 3px solid rgba(255, 215, 0, 0.5);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3), 0 4px 15px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            animation: slideInRight 0.5s ease-out;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
 
         #controls {
@@ -258,33 +357,83 @@
             font-weight: bold;
             cursor: pointer;
             user-select: none;
-            transition: all 0.1s;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
             border: 4px solid;
-            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3)
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .controlBtn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, rgba(255, 255, 255, 0.3), transparent);
+            opacity: 0;
+            transition: opacity 0.15s;
         }
 
         .controlBtn:active {
-            transform: translateY(4px);
-            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3)
+            transform: translateY(4px) scale(0.95);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3), 0 0 30px rgba(255, 255, 255, 0.3);
+        }
+
+        .controlBtn:active::before {
+            opacity: 1;
         }
 
         .arrowBtn {
             background: linear-gradient(145deg, #5A9FE2, #4A8FD2);
             border-color: #2A6FAA;
             color: white;
-            font-size: 32px
+            font-size: 32px;
+            box-shadow: 0 6px 0 #2A6FAA, 0 0 20px rgba(90, 159, 226, 0.4);
+        }
+
+        .arrowBtn:active {
+            background: linear-gradient(145deg, #4A8FD2, #3A7FC2);
+            box-shadow: 0 2px 0 #2A6FAA, 0 0 30px rgba(90, 159, 226, 0.6);
         }
 
         .attackBtn {
             background: linear-gradient(145deg, #FF5555, #FF4444);
             border-color: #CC0000;
-            color: white
+            color: white;
+            box-shadow: 0 6px 0 #CC0000, 0 0 20px rgba(255, 68, 68, 0.4);
+            animation: pulse-red 2s infinite;
+        }
+
+        .attackBtn:active {
+            background: linear-gradient(145deg, #FF4444, #FF3333);
+            box-shadow: 0 2px 0 #CC0000, 0 0 30px rgba(255, 68, 68, 0.6);
+            animation: none;
+        }
+
+        @keyframes pulse-red {
+
+            0%,
+            100% {
+                box-shadow: 0 6px 0 #CC0000, 0 0 20px rgba(255, 68, 68, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 6px 0 #CC0000, 0 0 30px rgba(255, 68, 68, 0.6);
+            }
         }
 
         .rollBtn {
             background: linear-gradient(145deg, #55FF55, #44FF44);
             border-color: #00CC00;
-            color: #005500
+            color: #005500;
+            box-shadow: 0 6px 0 #00CC00, 0 0 20px rgba(68, 255, 68, 0.4);
+        }
+
+        .rollBtn:active {
+            background: linear-gradient(145deg, #44FF44, #33FF33);
+            box-shadow: 0 2px 0 #00CC00, 0 0 30px rgba(68, 255, 68, 0.6);
         }
 
         .buttonLabel {
@@ -419,14 +568,980 @@
             top: 40%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: #FF4444;
+            color: #FFD700;
             font-size: 24px;
             z-index: 150;
             pointer-events: none;
-            text-shadow: 2px 2px 0 #000;
+            text-shadow: 0 0 10px #FFD700, 2px 2px 4px #000, -2px -2px 4px #000;
             display: none;
             text-align: center;
             width: 100%;
+            animation: notificationPulse 0.5s ease-out;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            padding: 20px;
+            border-radius: 15px;
+            border: 3px solid #FFD700;
+        }
+
+        @keyframes notificationPulse {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 0;
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.1);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* ========== RESPONSIVE DESIGN - TABLET ========== */
+        @media screen and (max-width: 1024px) {
+            .menu-title {
+                font-size: 36px;
+                margin-bottom: 35px;
+            }
+
+            .menu-subtitle {
+                font-size: 20px;
+                margin-bottom: 25px;
+            }
+
+            .menu-btn {
+                padding: 12px 30px;
+                font-size: 16px;
+                width: 250px;
+            }
+
+            .difficulty-btn {
+                padding: 15px 30px;
+                font-size: 16px;
+            }
+
+            .level-grid {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 12px;
+                max-height: 350px;
+                padding: 15px;
+            }
+
+            .level-select-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 14px;
+            }
+
+            #hud {
+                top: 15px;
+                left: 15px;
+                padding: 10px 15px;
+                font-size: 10px;
+            }
+
+            #score {
+                top: 15px;
+                right: 15px;
+                padding: 10px 15px;
+                font-size: 10px;
+            }
+
+            .instructions {
+                top: 100px;
+                left: 15px;
+                padding: 10px 12px;
+                font-size: 8px;
+                max-width: 200px;
+            }
+
+            .instructions h3 {
+                font-size: 9px;
+            }
+
+            .controlBtn {
+                width: 70px;
+                height: 70px;
+            }
+
+            .arrowBtn {
+                font-size: 28px;
+            }
+
+            .buttonLabel {
+                font-size: 7px;
+            }
+
+            .buttonKey {
+                font-size: 20px;
+            }
+
+            #overlayTitle {
+                font-size: 32px;
+            }
+
+            #overlaySubtitle {
+                font-size: 12px;
+            }
+
+            .overlay-btn {
+                padding: 14px 35px;
+                font-size: 12px;
+            }
+
+            #notification {
+                font-size: 20px;
+            }
+        }
+
+        /* ========== RESPONSIVE DESIGN - MOBILE ========== */
+        @media screen and (max-width: 768px) {
+            body {
+                overflow-x: hidden;
+            }
+
+            .menu-title {
+                font-size: 28px;
+                margin-bottom: 25px;
+                text-shadow: 4px 4px 0 #8B4500, 0 0 30px #FFD700;
+            }
+
+            .menu-subtitle {
+                font-size: 16px;
+                margin-bottom: 20px;
+                padding: 0 10px;
+            }
+
+            .menu-buttons {
+                gap: 15px;
+                width: 100%;
+                padding: 0 20px;
+            }
+
+            .menu-btn {
+                padding: 12px 25px;
+                font-size: 14px;
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .difficulty-selector {
+                flex-direction: column;
+                gap: 15px;
+                width: 100%;
+                padding: 0 20px;
+            }
+
+            .difficulty-btn {
+                padding: 15px 25px;
+                font-size: 14px;
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .level-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 10px;
+                max-height: 300px;
+                padding: 12px;
+                margin: 0 10px 15px;
+            }
+
+            .level-select-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 12px;
+            }
+
+            #hud {
+                top: 10px;
+                left: 10px;
+                padding: 8px 12px;
+                font-size: 8px;
+                border: 2px solid #FFF;
+            }
+
+            #hud .hearts {
+                gap: 3px;
+                margin-top: 5px;
+            }
+
+            #hud .heart {
+                font-size: 12px;
+            }
+
+            #score {
+                top: 10px;
+                right: 10px;
+                padding: 8px 12px;
+                font-size: 8px;
+                border: 2px solid #FFF;
+            }
+
+            .instructions {
+                top: 80px;
+                left: 10px;
+                padding: 8px 10px;
+                font-size: 7px;
+                max-width: 160px;
+                border: 2px solid #FFF;
+            }
+
+            .instructions h3 {
+                font-size: 8px;
+                margin-bottom: 6px;
+            }
+
+            .instructions li {
+                margin: 3px 0;
+            }
+
+            .instructions .objective {
+                font-size: 7px;
+                margin-top: 6px;
+            }
+
+            #controls {
+                height: 160px;
+                padding: 15px;
+            }
+
+            .leftControls,
+            .rightControls {
+                gap: 10px;
+            }
+
+            .controlBtn {
+                width: 60px;
+                height: 60px;
+                border: 3px solid;
+                box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+            }
+
+            .controlBtn:active {
+                transform: translateY(3px);
+                box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+            }
+
+            .arrowBtn {
+                font-size: 24px;
+            }
+
+            .buttonLabel {
+                font-size: 6px;
+                margin-bottom: 1px;
+            }
+
+            .buttonKey {
+                font-size: 18px;
+            }
+
+            #overlay {
+                bottom: 160px;
+                padding: 20px;
+            }
+
+            #overlayTitle {
+                font-size: 24px;
+                margin-bottom: 15px;
+            }
+
+            #overlaySubtitle {
+                font-size: 10px;
+                margin-bottom: 30px;
+                padding: 0 10px;
+            }
+
+            .overlay-buttons {
+                flex-direction: column;
+                gap: 15px;
+                width: 100%;
+                padding: 0 20px;
+            }
+
+            .overlay-btn {
+                padding: 12px 30px;
+                font-size: 11px;
+                width: 100%;
+                max-width: 250px;
+            }
+
+            #notification {
+                font-size: 16px;
+                padding: 0 20px;
+            }
+        }
+
+        /* ========== RESPONSIVE DESIGN - SMALL MOBILE ========== */
+        @media screen and (max-width: 480px) {
+            .menu-title {
+                font-size: 22px;
+                margin-bottom: 20px;
+            }
+
+            .menu-subtitle {
+                font-size: 14px;
+            }
+
+            .menu-btn {
+                padding: 10px 20px;
+                font-size: 12px;
+            }
+
+            .difficulty-btn {
+                padding: 12px 20px;
+                font-size: 12px;
+            }
+
+            .level-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+                max-height: 250px;
+            }
+
+            .level-select-btn {
+                width: 35px;
+                height: 35px;
+                font-size: 11px;
+            }
+
+            #hud {
+                top: 8px;
+                left: 8px;
+                padding: 6px 10px;
+                font-size: 7px;
+            }
+
+            #hud .heart {
+                font-size: 10px;
+            }
+
+            #score {
+                top: 8px;
+                right: 8px;
+                padding: 6px 10px;
+                font-size: 7px;
+            }
+
+            .instructions {
+                top: 70px;
+                left: 8px;
+                padding: 6px 8px;
+                font-size: 6px;
+                max-width: 140px;
+            }
+
+            .instructions h3 {
+                font-size: 7px;
+            }
+
+            .instructions .objective {
+                font-size: 6px;
+            }
+
+            #controls {
+                height: 140px;
+                padding: 10px;
+            }
+
+            .leftControls,
+            .rightControls {
+                gap: 8px;
+            }
+
+            .controlBtn {
+                width: 50px;
+                height: 50px;
+            }
+
+            .arrowBtn {
+                font-size: 20px;
+            }
+
+            .buttonLabel {
+                font-size: 5px;
+            }
+
+            .buttonKey {
+                font-size: 16px;
+            }
+
+            #overlayTitle {
+                font-size: 20px;
+            }
+
+            #overlaySubtitle {
+                font-size: 9px;
+            }
+
+            .overlay-btn {
+                padding: 10px 25px;
+                font-size: 10px;
+            }
+
+            #notification {
+                font-size: 14px;
+            }
+        }
+
+        /* ========== LANDSCAPE MODE OPTIMIZATIONS ========== */
+        @media screen and (max-height: 500px) and (orientation: landscape) {
+            .menu-title {
+                font-size: 24px;
+                margin-bottom: 15px;
+            }
+
+            .menu-subtitle {
+                font-size: 14px;
+                margin-bottom: 15px;
+            }
+
+            .menu-buttons {
+                gap: 10px;
+            }
+
+            .menu-btn {
+                padding: 8px 20px;
+                font-size: 12px;
+            }
+
+            .difficulty-selector {
+                flex-direction: row;
+                gap: 10px;
+            }
+
+            .difficulty-btn {
+                padding: 10px 20px;
+                font-size: 12px;
+            }
+
+            .level-grid {
+                max-height: 200px;
+                grid-template-columns: repeat(8, 1fr);
+            }
+
+            #hud {
+                top: 5px;
+                left: 5px;
+                padding: 5px 8px;
+                font-size: 7px;
+            }
+
+            #score {
+                top: 5px;
+                right: 5px;
+                padding: 5px 8px;
+                font-size: 7px;
+            }
+
+            .instructions {
+                display: none;
+            }
+
+            #controls {
+                height: 120px;
+                padding: 8px;
+            }
+
+            .controlBtn {
+                width: 45px;
+                height: 45px;
+            }
+
+            #overlayTitle {
+                font-size: 20px;
+                margin-bottom: 10px;
+            }
+
+            #overlaySubtitle {
+                font-size: 10px;
+                margin-bottom: 20px;
+            }
+
+            .overlay-buttons {
+                flex-direction: row;
+                gap: 15px;
+            }
+
+            .overlay-btn {
+                padding: 8px 20px;
+                font-size: 10px;
+            }
+        }
+
+        /* ========== MOBILE LANDSCAPE - ENHANCED (Android/iOS) ========== */
+        /* For mobile devices in landscape with height between 360-500px */
+        @media screen and (max-width: 915px) and (max-height: 500px) and (min-height: 360px) and (orientation: landscape) {
+            body {
+                overflow: hidden;
+            }
+
+            /* Optimize HUD for landscape */
+            #hud {
+                top: 3px;
+                left: 3px;
+                padding: 4px 8px;
+                font-size: 6px;
+                border: 2px solid #FFF;
+                background: rgba(0, 0, 0, 0.9);
+            }
+
+            #hud .hearts {
+                gap: 2px;
+                margin-top: 3px;
+            }
+
+            #hud .heart {
+                font-size: 9px;
+            }
+
+            #score {
+                top: 3px;
+                right: 3px;
+                padding: 4px 8px;
+                font-size: 6px;
+                border: 2px solid #FFF;
+                background: rgba(0, 0, 0, 0.9);
+            }
+
+            /* Hide instructions to maximize play area */
+            .instructions {
+                display: none !important;
+            }
+
+            /* Optimize controls for landscape thumb reach */
+            #controls {
+                height: 100px;
+                padding: 5px 10px;
+                bottom: 0;
+            }
+
+            .leftControls {
+                gap: 6px;
+            }
+
+            .rightControls {
+                gap: 6px;
+            }
+
+            .controlBtn {
+                width: 48px;
+                height: 48px;
+                border: 3px solid;
+                box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+            }
+
+            .controlBtn:active {
+                transform: translateY(2px);
+                box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+            }
+
+            .arrowBtn {
+                font-size: 22px;
+            }
+
+            .buttonLabel {
+                font-size: 5px;
+                margin-bottom: 0px;
+            }
+
+            .buttonKey {
+                font-size: 16px;
+            }
+
+            /* Optimize overlay for landscape */
+            #overlay {
+                bottom: 100px;
+                padding: 15px;
+            }
+
+            #overlayTitle {
+                font-size: 18px;
+                margin-bottom: 8px;
+            }
+
+            #overlaySubtitle {
+                font-size: 9px;
+                margin-bottom: 15px;
+            }
+
+            .overlay-buttons {
+                flex-direction: row;
+                gap: 12px;
+            }
+
+            .overlay-btn {
+                padding: 8px 20px;
+                font-size: 9px;
+            }
+
+            #notification {
+                font-size: 14px;
+                top: 35%;
+            }
+
+            /* Menu optimizations for landscape */
+            .menu-title {
+                font-size: 20px;
+                margin-bottom: 12px;
+            }
+
+            .menu-subtitle {
+                font-size: 12px;
+                margin-bottom: 12px;
+            }
+
+            .menu-buttons {
+                gap: 8px;
+            }
+
+            .menu-btn {
+                padding: 6px 18px;
+                font-size: 11px;
+                width: 220px;
+            }
+
+            .difficulty-selector {
+                flex-direction: row;
+                gap: 8px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .difficulty-btn {
+                padding: 8px 18px;
+                font-size: 11px;
+                flex: 1;
+                min-width: 120px;
+                max-width: 150px;
+            }
+
+            .level-grid {
+                max-height: 180px;
+                grid-template-columns: repeat(10, 1fr);
+                gap: 6px;
+                padding: 10px;
+            }
+
+            .level-select-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 10px;
+            }
+        }
+
+        /* ========== MOBILE LANDSCAPE - SMALL HEIGHT (< 400px) ========== */
+        /* For smaller mobile devices like iPhone SE in landscape */
+        @media screen and (max-width: 915px) and (max-height: 400px) and (orientation: landscape) {
+            #hud {
+                top: 2px;
+                left: 2px;
+                padding: 3px 6px;
+                font-size: 5px;
+            }
+
+            #hud .heart {
+                font-size: 8px;
+            }
+
+            #score {
+                top: 2px;
+                right: 2px;
+                padding: 3px 6px;
+                font-size: 5px;
+            }
+
+            #controls {
+                height: 85px;
+                padding: 4px 8px;
+            }
+
+            .controlBtn {
+                width: 42px;
+                height: 42px;
+            }
+
+            .arrowBtn {
+                font-size: 20px;
+            }
+
+            .buttonLabel {
+                font-size: 4px;
+            }
+
+            .buttonKey {
+                font-size: 14px;
+            }
+
+            .menu-title {
+                font-size: 18px;
+                margin-bottom: 10px;
+            }
+
+            .menu-btn {
+                padding: 5px 15px;
+                font-size: 10px;
+                width: 200px;
+            }
+
+            .difficulty-btn {
+                padding: 6px 15px;
+                font-size: 10px;
+            }
+
+            .level-grid {
+                max-height: 150px;
+                grid-template-columns: repeat(12, 1fr);
+            }
+
+            .level-select-btn {
+                width: 28px;
+                height: 28px;
+                font-size: 9px;
+            }
+
+            #overlay {
+                bottom: 85px;
+            }
+
+            #overlayTitle {
+                font-size: 16px;
+            }
+
+            #overlaySubtitle {
+                font-size: 8px;
+            }
+
+            .overlay-btn {
+                padding: 6px 16px;
+                font-size: 8px;
+            }
+        }
+
+        /* ========== MOBILE LANDSCAPE - LARGE SCREENS (Tablets in landscape) ========== */
+        /* For tablets and larger phones in landscape (height 500-768px) */
+        @media screen and (min-width: 568px) and (max-width: 1024px) and (min-height: 500px) and (max-height: 768px) and (orientation: landscape) {
+            #controls {
+                height: 140px;
+                padding: 10px 15px;
+            }
+
+            .controlBtn {
+                width: 65px;
+                height: 65px;
+            }
+
+            .arrowBtn {
+                font-size: 26px;
+            }
+
+            .buttonLabel {
+                font-size: 7px;
+            }
+
+            .buttonKey {
+                font-size: 20px;
+            }
+
+            #hud {
+                top: 8px;
+                left: 8px;
+                padding: 6px 12px;
+                font-size: 8px;
+            }
+
+            #score {
+                top: 8px;
+                right: 8px;
+                padding: 6px 12px;
+                font-size: 8px;
+            }
+
+            .instructions {
+                top: 80px;
+                left: 8px;
+                font-size: 7px;
+                max-width: 180px;
+            }
+
+            .level-grid {
+                grid-template-columns: repeat(8, 1fr);
+                max-height: 280px;
+            }
+        }
+
+        /* ========== iOS SPECIFIC OPTIMIZATIONS ========== */
+        /* Safe area support for iOS devices with notches */
+        @supports (padding: max(0px)) {
+            @media screen and (orientation: landscape) {
+                #hud {
+                    left: max(3px, env(safe-area-inset-left));
+                }
+
+                #score {
+                    right: max(3px, env(safe-area-inset-right));
+                }
+
+                #controls {
+                    padding-left: max(10px, env(safe-area-inset-left));
+                    padding-right: max(10px, env(safe-area-inset-right));
+                    padding-bottom: max(5px, env(safe-area-inset-bottom));
+                }
+
+                .leftControls {
+                    margin-left: env(safe-area-inset-left);
+                }
+
+                .rightControls {
+                    margin-right: env(safe-area-inset-right);
+                }
+            }
+        }
+
+        /* ========== ANDROID SPECIFIC OPTIMIZATIONS ========== */
+        /* For Android devices with navigation bars */
+        @media screen and (orientation: landscape) {
+            @supports (padding-bottom: env(safe-area-inset-bottom)) {
+                #controls {
+                    padding-bottom: calc(5px + env(safe-area-inset-bottom));
+                }
+            }
+        }
+
+        /* ========== MOBILE LANDSCAPE OPTIMIZATIONS ========== */
+        @media screen and (max-width: 915px) and (orientation: landscape) {
+            #gameCanvas {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw !important;
+                height: 100vh !important;
+                object-fit: cover;
+                /* Fill the screen */
+                image-rendering: pixelated;
+                transform: none !important;
+                /* Remove scaling that causes gaps */
+            }
+
+            /* Sleeker, semi-transparent HUD for landscape */
+            #hud,
+            #score {
+                background: rgba(0, 0, 0, 0.6) !important;
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                border: 2px solid rgba(255, 255, 255, 0.2) !important;
+                padding: 6px 12px !important;
+                border-radius: 12px !important;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+            }
+
+            #hud {
+                top: 15px !important;
+                left: max(15px, env(safe-area-inset-left)) !important;
+                font-size: 9px !important;
+            }
+
+            #score {
+                top: 15px !important;
+                right: max(15px, env(safe-area-inset-right)) !important;
+                font-size: 9px !important;
+            }
+
+            /* Optimize controls for landscape thumb reach */
+            #controls {
+                height: 120px !important;
+                /* Increased to match ground */
+                padding: 0 30px 20px 30px !important;
+                background: transparent !important;
+                pointer-events: none;
+                align-items: flex-end !important;
+            }
+
+            .leftControls,
+            .rightControls {
+                pointer-events: auto;
+                gap: 15px !important;
+            }
+
+            .controlBtn {
+                width: 65px !important;
+                /* Slightly larger */
+                height: 65px !important;
+                background: rgba(255, 255, 255, 0.25) !important;
+                /* More visible */
+                backdrop-filter: blur(15px);
+                -webkit-backdrop-filter: blur(15px);
+                border: 3px solid rgba(255, 255, 255, 0.4) !important;
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+            }
+
+            .controlBtn:active {
+                background: rgba(255, 255, 255, 0.3) !important;
+                transform: scale(0.92) !important;
+            }
+
+            .arrowBtn {
+                font-size: 24px !important;
+            }
+
+            .buttonKey {
+                font-size: 18px !important;
+            }
+
+            .buttonLabel {
+                display: none;
+            }
+
+            /* Hide labels to simplify */
+
+            #overlay {
+                bottom: 100px !important;
+                background: rgba(0, 0, 0, 0.8) !important;
+                padding: 20px !important;
+                border-radius: 20px !important;
+            }
+        }
+
+        /* ========== VIEWPORT OPTIMIZATION ========== */
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            background: #000;
+        }
+
+        body {
+            touch-action: none;
+            /* Prevent all default touch behaviors */
+        }
+
+        /* ========== TOUCH OPTIMIZATIONS ========== */
+        @media (hover: none) and (pointer: coarse) {
+            .controlBtn {
+                -webkit-tap-highlight-color: transparent;
+                user-select: none;
+                -webkit-user-select: none;
+                touch-action: manipulation;
+            }
+
+            .menu-btn,
+            .difficulty-btn,
+            .overlay-btn,
+            .level-select-btn {
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
+            }
+
+            /* Larger touch targets for better usability */
+            .controlBtn {
+                min-width: 60px;
+                min-height: 60px;
+            }
         }
     </style>
 </head>
@@ -501,8 +1616,8 @@
     <div id="controls">
         <div class="leftControls">
             <div class="controlBtn arrowBtn" id="leftBtn">←</div>
-            <div class="controlBtn arrowBtn" id="upBtn">↑</div>
             <div class="controlBtn arrowBtn" id="rightBtn">→</div>
+            <div class="controlBtn arrowBtn" id="upBtn">↑</div>
         </div>
         <div class="rightControls">
             <div class="actionRow">
@@ -516,6 +1631,9 @@
                 </div>
             </div>
         </div>
+        <button onclick="toggleFullScreen()"
+            style="position: fixed; top: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: white; border: 2px solid rgba(255,255,255,0.3); padding: 8px 15px; border-radius: 12px; font-family: 'Press Start 2P'; font-size: 8px; z-index: 1000; backdrop-filter: blur(10px);">⛶
+            FULLSCREEN</button>
     </div>
 
     <script>
@@ -634,7 +1752,8 @@
         const Engine = Matter.Engine, World = Matter.World, Bodies = Matter.Bodies, Body = Matter.Body;
         let engine, world, player, enemies, flag, floor, platformBodies = [];
         let attackHitbox = null, particles = [], cameraX = 0, levelConfig = null, gameRunning = false, clouds = [], mountains = [], pipes = [], brickStairs = [], bushes = [], floatingPlatforms = [], coins = [], questionBlocks = [], movingPlatforms = [], mushrooms = [], buildings = [], walls = [];
-        const PLAYER_SPEED = 8, JUMP_FORCE = 20, DODGE_IMPULSE = 18, DODGE_DURATION = 300, ATTACK_DURATION = 150, AGGRO_DISTANCE = 300, ATTACK_DISTANCE = 50, HIT_STOP_DURATION = 50, GROUND_Y = canvas.height - 250;
+        const PLAYER_SPEED = 8, JUMP_FORCE = 20, DODGE_IMPULSE = 18, DODGE_DURATION = 300, ATTACK_DURATION = 150, AGGRO_DISTANCE = 300, ATTACK_DISTANCE = 50, HIT_STOP_DURATION = 50;
+        let GROUND_Y = window.innerHeight - 120; /* Lowered from 250 for better mobile view */
         const CATEGORY = { PLAYER: 0x0001, PLAYER_ATTACK: 0x0002, ENEMY: 0x0004, ENVIRONMENT: 0x0008 };
         let gameState = { isGameOver: false, isVictory: false, hitStopEndTime: 0, isNight: false, inputState: { left: false, right: false, up: false, attack: false, roll: false, attackHandled: false, rollHandled: false, jumpHandled: false } };
         const playerSize = 45;
@@ -674,7 +1793,8 @@
         }
         function initLevel(levelNum, diff) {
             if (engine) { World.clear(engine.world); Engine.clear(engine) } engine = Engine.create(); engine.gravity.y = 1; world = engine.world; levelConfig = generateLevel(levelNum, diff); generateClouds(); generateMountains(); generateBuildings(); generateWalls(); generatePipes(); generateBrickStairs(); generateBushes(); generateFloatingPlatforms(); generateMovingPlatforms(); generateUpperClouds(); generateCoins(); generateQuestionBlocks(); platformBodies = []; mushrooms = [];
-            floor = Bodies.rectangle(levelConfig.levelWidth / 2, GROUND_Y + 25, levelConfig.levelWidth, 50, { isStatic: true, label: 'floor', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+            const floorHeight = 600;
+            floor = Bodies.rectangle(levelConfig.levelWidth / 2, GROUND_Y + floorHeight / 2, levelConfig.levelWidth, floorHeight, { isStatic: true, label: 'floor', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
             platformBodies.push(floor);
             pipes.forEach(pipe => {
                 const pipeTop = Bodies.rectangle(pipe.x, pipe.y - pipe.height - 5, 50, 10, { isStatic: true, label: 'platform', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
@@ -1451,12 +2571,21 @@
                     ctx.fillStyle = reached ? '#FFD700' : '#00FF00'; ctx.beginPath(); ctx.moveTo(0, -60); ctx.lineTo(40, -50); ctx.lineTo(40, -30); ctx.lineTo(0, -40); ctx.closePath(); ctx.fill(); ctx.stroke();
                 } else if (body.label === 'floor') {
                     const width = (body.bounds.max.x - body.bounds.min.x), height = (body.bounds.max.y - body.bounds.min.y);
-                    ctx.fillStyle = theme === 'CASTLE' ? '#222' : '#CC6600'; ctx.fillRect(-width / 2, -height / 2, width, height);
+                    // Draw soil/depth
+                    ctx.fillStyle = theme === 'CASTLE' ? '#222' : '#8B4513';
+                    ctx.fillRect(-width / 2, -height / 2, width, height);
+
+                    // Draw surface/grass
+                    ctx.fillStyle = theme === 'CASTLE' ? '#444' : '#5CAD5C';
+                    ctx.fillRect(-width / 2, -height / 2, width, 40);
+
                     ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
                     if (theme === 'NORMAL' || theme === 'SKY') {
                         const startX = Math.max(-width / 2, viewLeft - body.position.x);
                         const endX = Math.min(width / 2, viewRight - body.position.x);
-                        for (let x = Math.floor(startX / 40) * 40; x < endX; x += 40) ctx.strokeRect(x, -height / 2, 40, height);
+                        for (let x = Math.floor(startX / 40) * 40; x < endX; x += 40) {
+                            ctx.strokeRect(x, -height / 2, 40, 40); // Grid on surface only
+                        }
                     }
                 }
                 ctx.restore();
@@ -1464,7 +2593,58 @@
             drawParticles();
         }
 
-        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight });
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            const oldHeight = canvas.height;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            // Adjust GROUND_Y based on new height
+            const newGroundY = canvas.height - 120;
+            const diff = newGroundY - GROUND_Y;
+            GROUND_Y = newGroundY;
+
+            // Update physical floor position if it exists
+            if (floor && floor.position) {
+                const floorHeight = 600;
+                Matter.Body.setPosition(floor, {
+                    x: levelConfig ? levelConfig.levelWidth / 2 : canvas.width / 2,
+                    y: GROUND_Y + floorHeight / 2
+                });
+            }
+
+            // Adjust physics bodies to not get stuck below ground if it moved up
+            if (diff < 0 && player && player.position) {
+                if (player.position.y > GROUND_Y) {
+                    Matter.Body.setPosition(player, { x: player.position.x, y: GROUND_Y - 50 });
+                }
+            }
+        });
+
+        // Trigger resize on load to set initial size
+        window.dispatchEvent(new Event('resize'));
+    </script>
+    <script>
+        // Haptic feedback for mobile
+        function vibrate(duration = 20) {
+            if (navigator.vibrate) navigator.vibrate(duration);
+        }
+
+        // Add vibration to all control buttons
+        document.querySelectorAll('.controlBtn').forEach(btn => {
+            btn.addEventListener('touchstart', () => vibrate(15));
+        });
     </script>
 </body>
 
