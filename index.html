@@ -1557,6 +1557,9 @@
                 <button class="menu-btn" onclick="showDifficultySelect()">NEW GAME</button>
                 <button class="menu-btn" onclick="continueGame()">RECENT LEVEL</button>
                 <button class="menu-btn" onclick="showLevelSelect()">LEVEL SELECT</button>
+                <button id="installBtn" class="menu-btn"
+                    style="display:none; background: linear-gradient(145deg, #FFD700, #FFA500); color: #000;"
+                    onclick="installPWA()">INSTALL GAME</button>
             </div>
         </div>
 
@@ -2649,6 +2652,36 @@
         });
     </script>
     <script>
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI to notify the user they can add to home screen
+            installBtn.style.display = 'block';
+        });
+
+        async function installPWA() {
+            if (!deferredPrompt) return;
+            // Show the prompt
+            deferredPrompt.prompt();
+            // Wait for the user to respond to the prompt
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            // We've used the prompt, and can't use it again, throw it away
+            deferredPrompt = null;
+            // Hide our install button
+            installBtn.style.display = 'none';
+        }
+
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('PIXELIO was installed');
+            installBtn.style.display = 'none';
+        });
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
