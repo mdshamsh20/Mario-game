@@ -1771,7 +1771,7 @@
         function generateCoins() { coins = []; const coinCount = 10 + Math.floor(levelConfig.levelNum / 2); for (let i = 0; i < Math.min(coinCount, 25); i++) { const onPlatform = Math.random() > 0.3; if (onPlatform && floatingPlatforms.length > 0) { const plat = floatingPlatforms[Math.floor(Math.random() * floatingPlatforms.length)]; coins.push({ x: plat.x + Math.random() * (plat.width * 30), y: plat.y - 40, collected: false, animFrame: 0 }) } else { coins.push({ x: 200 + Math.random() * (levelConfig.levelWidth - 400), y: GROUND_Y - 100 - Math.random() * 200, collected: false, animFrame: 0 }) } } }
         function generateQuestionBlocks() { questionBlocks = []; const blockCount = 5 + Math.floor(levelConfig.levelNum / 3); for (let i = 0; i < Math.min(blockCount, 12); i++) { if (floatingPlatforms.length > 0) { const plat = floatingPlatforms[Math.floor(Math.random() * floatingPlatforms.length)]; const isMushroom = i === 0; const isSword = !isMushroom && i === 1 && Math.random() < 0.7; const isTrap = !isMushroom && !isSword && levelConfig.levelNum > 5 && Math.random() < 0.3; questionBlocks.push({ x: plat.x + 15, y: plat.y - 60, hit: false, coins: 3, bumping: false, bumpTime: 0, isMushroom: isMushroom, isSword: isSword, isTrap: isTrap }) } } }
         function generateMovingPlatforms() { movingPlatforms = []; const count = Math.floor(levelConfig.levelWidth / 1500); for (let i = 0; i < count; i++) { const startX = 800 + (i * 1200) + Math.random() * 400; const y = GROUND_Y - 180 - (Math.floor(Math.random() * 3) * 70); movingPlatforms.push({ x: startX, y: y, width: 3, startX: startX, endX: startX + 250, direction: 1, speed: 2, bodies: [] }) } }
-        function generateBuildings() { buildings = []; const count = Math.floor(levelConfig.levelWidth / 700); for (let i = 0; i < count; i++) { const x = 600 + (i * 900) + Math.random() * 300; const width = 180 + Math.random() * 120; const height = 250 + Math.random() * 300; const colorVar = Math.floor(Math.random() * 3); buildings.push({ x, y: GROUND_Y - height / 2, width, height, colorVar }) } }
+        function generateBuildings() { buildings = []; const count = Math.floor(levelConfig.levelWidth / 700); for (let i = 0; i < count; i++) { const x = 600 + (i * 900) + Math.random() * 300; const width = 180 + Math.random() * 120; const height = 120 + Math.random() * 150; const colorVar = Math.floor(Math.random() * 3); buildings.push({ x, y: GROUND_Y - height / 2, width, height, colorVar }) } }
         function generateWalls() { walls = []; const count = Math.floor(levelConfig.levelWidth / 600); for (let i = 0; i < count; i++) { const x = 400 + (i * 600) + Math.random() * 200; const height = 150 + Math.random() * 100; walls.push({ x, y: GROUND_Y - height / 2, width: 40, height }) } }
         function generateUpperClouds() { const count = Math.floor(levelConfig.levelWidth / 1000); for (let i = 0; i < count; i++) { const startX = 500 + (i * 1000); const y = GROUND_Y - 450 - (Math.random() * 150); movingPlatforms.push({ x: startX, y: y, width: 4 + Math.floor(Math.random() * 2), startX: startX, endX: startX + 300, direction: 1, speed: 1.5, bodies: [] }) } }
         function generateFloatingPlatforms() { floatingPlatforms = []; const platformCount = Math.floor(levelConfig.levelWidth / 400); for (let i = 0; i < platformCount; i++) { const x = 300 + (i * 400) + (Math.random() * 150); const heightLevel = Math.floor(Math.random() * 4); const y = GROUND_Y - 150 - (heightLevel * 90); const width = 3 + Math.floor(Math.random() * 3); const isCloud = Math.random() > 0.7; floatingPlatforms.push({ x: x, y: y, width: width, isCloud: isCloud }) } }
@@ -1912,6 +1912,10 @@
             const endWall = Bodies.rectangle(levelConfig.levelWidth + 25, GROUND_Y - 1000, 50, 2000, { isStatic: true, label: 'endWall', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
             World.add(world, endWall);
 
+            // Fixed Upper Ceiling
+            const ceiling = Bodies.rectangle(levelConfig.levelWidth / 2, -10, levelConfig.levelWidth, 20, { isStatic: true, label: 'ceiling', friction: 0, frictionStatic: 0, collisionFilter: { category: CATEGORY.ENVIRONMENT } });
+            World.add(world, ceiling);
+
             // Spawn Hidden Enemies on Clouds (Level > 5)
             // Spawn Hidden Enemies on Clouds (Randomly)
             floatingPlatforms.forEach(plat => {
@@ -1991,6 +1995,8 @@
                 Body.setVelocity(player, { x: player.velocity.x, y: 0 });
                 player.gameData.isGrounded = true; player.gameData.canJump = true;
             }
+
+
 
             movingPlatforms.forEach(mp => {
                 mp.x += mp.direction * mp.speed;
@@ -2100,6 +2106,18 @@
             if (!inputState.roll) inputState.rollHandled = false;
 
             if (inputState.attack && !inputState.attackHandled) {
+                // Automatically face nearest enemy when attacking
+                const nearestEnemy = enemies.reduce((closest, current) => {
+                    const distX = Math.abs(current.position.x - player.position.x);
+                    const distY = Math.abs(current.position.y - player.position.y);
+                    if (distY < 100 && (!closest || distX < closest.dist)) return { body: current, dist: distX };
+                    return closest;
+                }, null);
+
+                if (nearestEnemy && nearestEnemy.dist < 300) {
+                    player.gameData.facingRight = (nearestEnemy.body.position.x > player.position.x);
+                }
+
                 player.gameData.state = 'attack';
                 const offX = player.gameData.facingRight ? 40 : -40;
                 attackHitbox = Bodies.rectangle(player.position.x + offX, player.position.y, 40, 50, { isSensor: true, label: 'playerHitbox', collisionFilter: { category: CATEGORY.PLAYER_ATTACK, mask: CATEGORY.ENEMY } });
